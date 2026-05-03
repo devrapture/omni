@@ -30,7 +30,7 @@ func Load() (*Config, error) {
 		if appEnv != "development" {
 			return nil, fmt.Errorf("DATABASE_URL is required in %s environment", appEnv)
 		}
-		dbURL = "postgres://postgres:postgres@localhost:5432/omni-bot?sslmode=disable"
+		dbURL = "postgres://postgres:password@localhost:5432/omni-bot?sslmode=disable"
 	}
 
 	return &Config{
