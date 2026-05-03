@@ -1,11 +1,11 @@
-.PHONY: dev-backend dev-frontend dev migrate-up migrate-down migrate-create
+.PHONY: dev-backend dev-frontend dev db-up db-down db-logs migrate-up migrate-down migrate-create
 
 
 
 # Variables
 BACKEND_DIR=apps/backend
 FRONTEND_DIR=apps/frontend
-DB_URL=postgres://user:password@localhost:5432/dbname?sslmode=disable
+DB_URL=\
 
 
 # Development
@@ -16,6 +16,17 @@ dev-backend:
 dev-frontend:
 	@echo "Starting frontend..."
 	cd $(FRONTEND_DIR) && pnpm dev
+
+db-up:
+	@echo "Starting Postgres with Docker Compose..."
+	docker compose up -d postgres
+
+db-down:
+	@echo "Stopping Postgres container..."
+	docker compose down
+
+db-logs:
+	docker compose logs -f postgres
 
 # Run both using a tool like 'concurrently' or simple backgrounding
 # For a senior setup, we'll assume the user can use multiple terminals or we provide a single command
