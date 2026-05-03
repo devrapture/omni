@@ -6,8 +6,8 @@ import (
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/database"
-	"github.com/devrapture/omni/routes"
-	"github.com/devrapture/omni/utils"
+	"github.com/devrapture/omni/internal/routes"
+	"github.com/devrapture/omni/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -34,8 +34,8 @@ func main() {
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 
-	log.Printf("Server starting on %s", addr)
 	r := routes.Setup(db)
+	logger.Info("Server starting", zap.String("addr", addr))
 
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("Failed to start server %v", err)

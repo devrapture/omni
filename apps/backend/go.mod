@@ -4,7 +4,6 @@ go 1.25.7
 
 require (
 	ariga.io/atlas-provider-gorm v0.6.0
-	github.com/devrapture/go-omnibot v0.0.0-20260502144916-466edea4633b
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/validator/v10 v10.30.2
 	github.com/joho/godotenv v1.5.1

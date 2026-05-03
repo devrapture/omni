@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"github.com/devrapture/omni/handler"
-	"github.com/devrapture/omni/utils"
+	"github.com/devrapture/omni/internal/handler"
+	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
