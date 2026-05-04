@@ -1,13 +1,17 @@
 package routes
 
 import (
-	"github.com/devrapture/omni/internal/handler"
+	handlers "github.com/devrapture/omni/internal/handler"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func Setup(db *gorm.DB) *gin.Engine {
+type HandlerDependencies struct {
+	AuthHandler *handlers.AuthHandler
+}
+
+func Setup(db *gorm.DB, deps HandlerDependencies) *gin.Engine {
 	utils.RegisterValidators()
 
 	r := gin.Default()
@@ -15,8 +19,14 @@ func Setup(db *gorm.DB) *gin.Engine {
 	v1 := r.Group("/api/v1")
 
 	{
-		v1.GET("/health", handler.HealthHandler(db))
+		v1.GET("/health", handlers.HealthHandler(db))
+		// auth
+		auth := v1.Group("/auth")
 
+		auth.
+			GET("/google", deps.AuthHandler.GoogleLogin).
+			GET("/google/callback", deps.AuthHandler.GoogleCallback).
+			POST("/google/login", deps.AuthHandler.LoginWithGoogle) // when frontend is using Authjs library
 	}
 
 	return r

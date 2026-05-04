@@ -6,12 +6,15 @@ import (
 	"io"
 	"os"
 
+	"github.com/devrapture/omni/internal/models"
+
 	"ariga.io/atlas-provider-gorm/gormschema"
 )
 
 func main() {
 	stmts, err := gormschema.New("postgres").Load(
-	// list all your model structs here
+		// list all your model structs here
+		&models.User{},
 	// add all models...
 	)
 	if err != nil {

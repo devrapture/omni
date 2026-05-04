@@ -6,7 +6,10 @@ import (
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/database"
+	handlers "github.com/devrapture/omni/internal/handler"
+	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/routes"
+	"github.com/devrapture/omni/internal/service"
 	"github.com/devrapture/omni/internal/utils"
 	"go.uber.org/zap"
 )
@@ -32,9 +35,22 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
+	// Repositories
+	userRepo := repositories.NewUserRepository(db)
+
+	// Services
+	userSvc := service.NewUserService(cfg, userRepo)
+
+	// Handlers
+	authHandler := handlers.NewAuthHandler(userSvc)
+
+	deps := routes.HandlerDependencies{
+		AuthHandler: authHandler,
+	}
+
 	addr := fmt.Sprintf(":%s", cfg.Port)
 
-	r := routes.Setup(db)
+	r := routes.Setup(db, deps)
 	logger.Info("Server starting", zap.String("addr", addr))
 
 	if err := r.Run(addr); err != nil {
