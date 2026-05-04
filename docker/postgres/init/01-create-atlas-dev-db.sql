@@ -1,1 +1,1 @@
-CREATE DATABASE "omni-bot-atlas";
+CREATE DATABASE "omni-atlas";
