@@ -34,19 +34,20 @@ func (r *userSettingRepository) FindByUserID(ctx context.Context, userID uuid.UU
 func (r *userSettingRepository) Upsert(ctx context.Context, userID uuid.UUID, userSettings *models.UserSetting) error {
 	var existing models.UserSetting
 	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&existing).Error
-	if err != nil {
-		existing.Mode = userSettings.Mode
-		if userSettings.GeminiAPIKeyEncrypted != "" {
-			existing.GeminiAPIKeyEncrypted = userSettings.GeminiAPIKeyEncrypted
-		}
-		return r.db.WithContext(ctx).Save(&existing).Error
-	}
-
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
 
-	return r.db.WithContext(ctx).Create(userSettings).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		userSettings.UserID = userID
+		return r.db.WithContext(ctx).Create(userSettings).Error
+	}
+
+	existing.Mode = userSettings.Mode
+	if userSettings.GeminiAPIKeyEncrypted != "" {
+		existing.GeminiAPIKeyEncrypted = userSettings.GeminiAPIKeyEncrypted
+	}
+	return r.db.WithContext(ctx).Save(&existing).Error
 }
 
 func (r *userSettingRepository) DeleteAPIKey(ctx context.Context, userID uuid.UUID) error {
