@@ -41,7 +41,7 @@ func main() {
 
 	// Services
 	userSvc := service.NewUserService(cfg, userRepo)
-	userSettingsSvc := service.NewUserSettingService(userSettingRepo)
+	userSettingsSvc := service.NewUserSettingService(userSettingRepo,cfg)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userSvc)

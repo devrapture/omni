@@ -36,7 +36,9 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config) *gin.Engin
 		settings.Use(middleware.AuthMiddleware(cfg))
 
 		settings.
-			GET("", deps.UserSettingsHandler.GetUserSettings)
+			GET("", deps.UserSettingsHandler.GetUserSettings).
+			POST("", deps.UserSettingsHandler.UpdateUserSettings)
+			
 	}
 
 	return r

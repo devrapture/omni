@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/devrapture/omni/internal/dto"
 	"github.com/devrapture/omni/internal/service"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -28,4 +29,21 @@ func (h *SettingsHandler) GetUserSettings(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Successful retrieved user settings", userSetting, nil)
+}
+
+func (h *SettingsHandler) UpdateUserSettings(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	var req dto.UpdateUserSettingsDTO
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid request body")
+		return
+	}
+
+	if err := h.service.UpdateUserSettings(c.Request.Context(), userID.(uuid.UUID), req); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "USER_SETTINGS_UPDATE_FAILED", "failed to update user settings")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Successful updated user settings", nil, nil)
 }

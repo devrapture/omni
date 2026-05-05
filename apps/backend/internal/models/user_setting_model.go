@@ -27,9 +27,9 @@ type UserSetting struct {
 	UserID uuid.UUID `json:"user_id" gorm:"type:uuid;not null"`
 	User   User      `json:"-" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
 
-	Provider              AIProvider `json:"provider" gorm:"type:text;not null;default:gemini"`
-	Mode                  AIKeyMode  `json:"mode" gorm:"type:text;not null;default:platform"`
-	GeminiAPIKeyEncrypted string     `json:"-" gorm:"type:text"`
+	Provider        AIProvider `json:"provider" gorm:"type:text;not null;default:gemini"`
+	Mode            AIKeyMode  `json:"mode" gorm:"type:text;not null;default:platform"`
+	APIKeyEncrypted string     `json:"-" gorm:"type:text"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
