@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/devrapture/omni/internal/dto"
@@ -46,4 +47,14 @@ func (h *SettingsHandler) UpdateUserSettings(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Successful updated user settings", nil, nil)
+}
+
+func (h *SettingsHandler) DeleteUserSettings(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	if err := h.service.DeleteUserKey(c.Request.Context(), userID.(uuid.UUID)); err != nil {
+		log.Println("error deleting user settings", err)
+		utils.ErrorResponse(c, http.StatusInternalServerError, "USER_SETTINGS_DELETE_FAILED", "failed to delete user settings")
+		return
+	}
+	utils.SuccessResponse(c, http.StatusOK, "Successful deleted user settings", nil, nil)
 }

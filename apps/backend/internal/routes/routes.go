@@ -37,8 +37,9 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config) *gin.Engin
 
 		settings.
 			GET("", deps.UserSettingsHandler.GetUserSettings).
-			POST("", deps.UserSettingsHandler.UpdateUserSettings)
-			
+			POST("", deps.UserSettingsHandler.UpdateUserSettings).
+			DELETE("", deps.UserSettingsHandler.DeleteUserSettings)
+
 	}
 
 	return r

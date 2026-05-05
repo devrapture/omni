@@ -54,7 +54,7 @@ func (r *userSettingRepository) DeleteAPIKey(ctx context.Context, userID uuid.UU
 	return r.db.WithContext(ctx).Model(&models.UserSetting{}).Where("user_id = ?", userID).Updates(
 		map[string]interface{}{
 			"mode":                     models.AIKeyModePlatform,
-			"gemini_api_key_encrypted": "",
+			"api_key_encrypted": "",
 		},
 	).Error
 }
