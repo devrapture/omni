@@ -37,20 +37,24 @@ func main() {
 
 	// Repositories
 	userRepo := repositories.NewUserRepository(db)
+	userSettingRepo := repositories.NewUserSettingRepository(db)
 
 	// Services
 	userSvc := service.NewUserService(cfg, userRepo)
+	userSettingsSvc := service.NewUserSettingService(userSettingRepo,cfg)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userSvc)
+	userSettingHandler := handlers.NewUserSettingsHandler(userSettingsSvc)
 
 	deps := routes.HandlerDependencies{
-		AuthHandler: authHandler,
+		AuthHandler:         authHandler,
+		UserSettingsHandler: userSettingHandler,
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 
-	r := routes.Setup(db, deps)
+	r := routes.Setup(db, deps, cfg)
 	logger.Info("Server starting", zap.String("addr", addr))
 
 	if err := r.Run(addr); err != nil {

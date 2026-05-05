@@ -34,7 +34,18 @@ func (r *userRepo) FindOrCreateUser(ctx context.Context, userID, userEmail, user
 			Provider:   provider,
 			AvatarURL:  userPicture,
 		}
-		if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
+		if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Create(&user).Error; err != nil {
+				return err
+			}
+
+			user.UserSetting = &models.UserSetting{
+				UserID:   user.ID,
+				Provider: models.AIProviderGemini,
+				Mode:     models.AIKeyModePlatform,
+			}
+			return tx.Create(user.UserSetting).Error
+		}); err != nil {
 			return nil, err
 		}
 	}
