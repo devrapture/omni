@@ -44,6 +44,7 @@ func (r *userSettingRepository) Upsert(ctx context.Context, userID uuid.UUID, us
 	}
 
 	existing.Mode = userSettings.Mode
+	existing.Provider = userSettings.Provider
 	if userSettings.APIKeyEncrypted != "" {
 		existing.APIKeyEncrypted = userSettings.APIKeyEncrypted
 	}

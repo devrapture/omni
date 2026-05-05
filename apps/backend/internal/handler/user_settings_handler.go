@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
 	"github.com/devrapture/omni/internal/dto"
+	apperrors "github.com/devrapture/omni/internal/errors"
 	"github.com/devrapture/omni/internal/service"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -25,6 +27,10 @@ func (h *SettingsHandler) GetUserSettings(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	userSetting, err := h.service.GetUserSettings(c.Request.Context(), userID.(uuid.UUID))
 	if err != nil {
+		if errors.Is(err, apperrors.ErrSettingsNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "SETTINGS_NOT_FOUND", "user settings not found")
+			return
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "USER_SETTINGS_FETCH_FAILED", "failed to get user settings")
 		return
 	}
@@ -42,6 +48,10 @@ func (h *SettingsHandler) UpdateUserSettings(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateUserSettings(c.Request.Context(), userID.(uuid.UUID), req); err != nil {
+		if errors.Is(err, apperrors.ErrEmptyAPIKey) {
+			utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "api_key is required when mode is user_key")
+			return
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "USER_SETTINGS_UPDATE_FAILED", "failed to update user settings")
 		return
 	}

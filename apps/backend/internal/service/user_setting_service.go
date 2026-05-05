@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/dto"
@@ -26,6 +27,9 @@ type userSettingService struct {
 }
 
 func NewUserSettingService(repo repositories.UserSettingRepository, cfg *config.Config) UserSettingService {
+	if cfg == nil {
+		panic("user setting service requires non-nil config")
+	}
 	return &userSettingService{
 		repo: repo,
 		cfg:  cfg,
@@ -50,7 +54,7 @@ func (s *userSettingService) UpdateUserSettings(ctx context.Context, userID uuid
 		Provider: dto.Provider,
 	}
 	if dto.Mode == models.AIKeyModeUserKey {
-		if dto.APIKey == "" {
+		if strings.TrimSpace(dto.APIKey) == "" {
 			return apperrors.ErrEmptyAPIKey
 		}
 		encryptedKey, err := utils.EncryptText(dto.APIKey, s.cfg.EncryptionKey)

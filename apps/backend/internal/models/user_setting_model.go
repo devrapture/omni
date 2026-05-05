@@ -24,7 +24,7 @@ const (
 
 type UserSetting struct {
 	ID     uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	UserID uuid.UUID `json:"user_id" gorm:"type:uuid;not null"`
+	UserID uuid.UUID `json:"user_id" gorm:"type:uuid;not null;uniqueIndex"`
 	User   User      `json:"-" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
 
 	Provider        AIProvider `json:"provider" gorm:"type:text;not null;default:gemini"`

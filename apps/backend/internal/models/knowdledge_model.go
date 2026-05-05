@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pgvector/pgvector-go"
+	// "github.com/pgvector/pgvector-go"
 	"gorm.io/gorm"
 )
 
@@ -16,7 +16,8 @@ type BusinessKnowledge struct {
 	SourceType string    `json:"source_type" gorm:"type:text;not null"` // where this chunk came from? (text,pdf,docx,csv,xlsx,web)
 	ChunkIndex int       `json:"chunk_index" gorm:"default:0"`
 	IsActive   bool      `json:"is_active" gorm:"default:true"`
-	Embedding  pgvector.Vector
+	// Embedding  pgvector.Vector
+	// Embedding  pgvector.Vector `gorm:"type:vector(1536)"`
 	UserID     uuid.UUID      `json:"user_id" gorm:"type:uuid;not null"`
 	User       User           `json:"-" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
 	CreatedAt  time.Time      `json:"created_at"`

@@ -80,6 +80,9 @@ func Load() (*Config, error) {
 	}
 
 	if _, err := decodeEncryptionKey(config.EncryptionKey); err != nil {
+		if appEnv == "production" {
+			return nil, fmt.Errorf("invalid ENCRYPTION_KEY: %w", err)
+		}
 		log.Println("WARNING: invalid ENCRYPTION_KEY:", err)
 	}
 	return config, nil
