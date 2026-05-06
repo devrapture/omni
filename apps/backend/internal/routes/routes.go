@@ -12,6 +12,7 @@ import (
 type HandlerDependencies struct {
 	AuthHandler         *handlers.AuthHandler
 	UserSettingsHandler *handlers.SettingsHandler
+	FileUploadHandler   *handlers.FileUploadHandler
 }
 
 func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config) *gin.Engine {
@@ -39,6 +40,13 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config) *gin.Engin
 			GET("", deps.UserSettingsHandler.GetUserSettings).
 			POST("", deps.UserSettingsHandler.UpdateUserSettings).
 			DELETE("", deps.UserSettingsHandler.DeleteUserSettings)
+
+		// file upload
+		fileUpload := v1.Group("/file-upload")
+		fileUpload.Use(middleware.AuthMiddleware(cfg))
+
+		fileUpload.
+			POST("", deps.FileUploadHandler.HandleFileUpload)
 
 	}
 
