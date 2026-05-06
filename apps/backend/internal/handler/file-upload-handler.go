@@ -7,20 +7,23 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-type FileUploadHandler struct{}
+type FileUploadHandler struct {
+	cfg *config.Config
+}
 
-func NewFileUploadHandler() *FileUploadHandler {
-	return &FileUploadHandler{}
+func NewFileUploadHandler(cfg *config.Config) *FileUploadHandler {
+	return &FileUploadHandler{cfg: cfg}
 }
 
 func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 5<<20)
-	if err := c.Request.ParseMultipartForm(5 << 20); err != nil {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, h.cfg.FileUploadMaxBytes)
+	if err := c.Request.ParseMultipartForm(h.cfg.FileUploadMaxBytes); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file size is too large")
 		return
 	}
