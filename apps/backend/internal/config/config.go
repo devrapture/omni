@@ -33,6 +33,8 @@ type Config struct {
 	JwtSecret  string
 
 	EncryptionKey string
+
+	FileUploadMaxBytes int64
 }
 
 func Load() (*Config, error) {
@@ -64,6 +66,12 @@ func Load() (*Config, error) {
 		jwtSecret = "dev-secret-do-not-use-in-production"
 	}
 
+	fileUploadMaxBytes, err := strconv.ParseInt(getEnv("FILE_UPLOAD_MAX_BYTES", "5242880"), 10, 64)
+	if err != nil || fileUploadMaxBytes <= 0 {
+		log.Println("invalid FILE_UPLOAD_MAX_BYTES, defaulting to 5242880")
+		fileUploadMaxBytes = 5 << 20
+	}
+
 	config := &Config{
 		AppEnv:                appEnv,
 		Port:                  getEnv("PORT", "8080"),
@@ -77,6 +85,7 @@ func Load() (*Config, error) {
 		EncryptionKey:         mustEnv("ENCRYPTION_KEY"),
 		JwtExpires:            jwtHours,
 		JwtSecret:             jwtSecret,
+		FileUploadMaxBytes:    fileUploadMaxBytes,
 	}
 
 	if _, err := decodeEncryptionKey(config.EncryptionKey); err != nil {

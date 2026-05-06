@@ -41,15 +41,17 @@ func main() {
 
 	// Services
 	userSvc := service.NewUserService(cfg, userRepo)
-	userSettingsSvc := service.NewUserSettingService(userSettingRepo,cfg)
+	userSettingsSvc := service.NewUserSettingService(userSettingRepo, cfg)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userSvc)
 	userSettingHandler := handlers.NewUserSettingsHandler(userSettingsSvc)
+	fileUploadHandler := handlers.NewFileUploadHandler(cfg)
 
 	deps := routes.HandlerDependencies{
 		AuthHandler:         authHandler,
 		UserSettingsHandler: userSettingHandler,
+		FileUploadHandler:   fileUploadHandler,
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
