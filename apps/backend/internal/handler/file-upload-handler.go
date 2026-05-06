@@ -19,6 +19,12 @@ func NewFileUploadHandler() *FileUploadHandler {
 }
 
 func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 5<<20)
+	if err := c.Request.ParseMultipartForm(5 << 20); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file size is too large")
+		return
+	}
+
 	file, err := c.FormFile("file")
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file is required")
@@ -26,20 +32,25 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	allowed := map[string]bool{
-		".pdf":  true,
-		".docx": true,
-		".csv":  true,
-		".xlsx": true,
-	}
-
-	if !allowed[ext] {
-		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "unsupported file type")
+	src, err := file.Open()
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "failed to read uploaded file")
 		return
 	}
+	defer src.Close()
 
-	if file.Size > 5<<20 {
-		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file size is too large")
+	head := make([]byte, 512)
+	n, _ := src.Read(head)
+	mime := http.DetectContentType(head[:n])
+
+	allowedMIME := map[string]bool{
+		"application/pdf": true,
+		"text/csv":        true,
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       true,
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+	}
+	if !allowedMIME[mime] {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "unsupported file content type")
 		return
 	}
 
@@ -48,9 +59,12 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 		return
 	}
 
-	storedFileName := fmt.Sprintf("%s.%s", uuid.New().String(), ext)
+	storedFileName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
 	dist := filepath.Join("./uploads", storedFileName)
-	c.SaveUploadedFile(file, dist)
+	if err := c.SaveUploadedFile(file, dist); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to store file")
+		return
+	}
 
-	utils.SuccessResponse(c, http.StatusOK, "file uploaded and successfully parsed", nil, nil)
+	utils.SuccessResponse(c, http.StatusOK, "file uploaded successfully", nil, nil)
 }
