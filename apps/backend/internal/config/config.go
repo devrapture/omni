@@ -35,6 +35,7 @@ type Config struct {
 	EncryptionKey string
 
 	FileUploadMaxBytes int64
+	
 }
 
 func Load() (*Config, error) {
