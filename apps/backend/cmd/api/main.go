@@ -42,11 +42,12 @@ func main() {
 	// Services
 	userSvc := service.NewUserService(cfg, userRepo)
 	userSettingsSvc := service.NewUserSettingService(userSettingRepo, cfg)
+	parserSvc := service.NewParserService()
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userSvc)
 	userSettingHandler := handlers.NewUserSettingsHandler(userSettingsSvc)
-	fileUploadHandler := handlers.NewFileUploadHandler(cfg)
+	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, logger)
 
 	deps := routes.HandlerDependencies{
 		AuthHandler:         authHandler,

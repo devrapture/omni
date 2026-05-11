@@ -54,10 +54,12 @@ func (s *userSettingService) UpdateUserSettings(ctx context.Context, userID uuid
 		Provider: dto.Provider,
 	}
 	if dto.Mode == models.AIKeyModeUserKey {
-		if strings.TrimSpace(dto.APIKey) == "" {
+		apiKey := strings.TrimSpace(dto.APIKey)
+		if apiKey == "" {
 			return apperrors.ErrEmptyAPIKey
 		}
-		encryptedKey, err := utils.EncryptText(dto.APIKey, s.cfg.EncryptionKey)
+
+		encryptedKey, err := utils.EncryptText(apiKey, s.cfg.EncryptionKey)
 
 		if err != nil {
 			return err
