@@ -17,7 +17,6 @@ import (
 	"go.uber.org/zap"
 )
 
-
 const (
 	maxFileNameLen = 255
 )
@@ -71,7 +70,7 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 	fileName := filepath.Base(file.Filename)
 
 	if len(fileName) > maxFileNameLen {
-		utils.ErrorResponse(c,http.StatusBadRequest, "BAD_REQUEST", "file name is too long")
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file name is too long")
 		return
 	}
 
@@ -84,6 +83,9 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 
 	content, sourceType, err := h.service.Parse(dist)
 	if err != nil {
+		if removeErr := os.Remove(dist); removeErr != nil && errors.Is(removeErr, os.ErrNotExist) {
+			h.logger.Warn("failed to cleanup uploaded file after parse failure", zap.String("path", dist), zap.Error(removeErr))
+		}
 		if errors.Is(err, apperrors.ErrNotSupportFile) {
 			utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "unsupported file content type")
 			return
