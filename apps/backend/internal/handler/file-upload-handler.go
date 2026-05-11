@@ -63,7 +63,7 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 	}
 	defer src.Close()
 
-	if err := os.MkdirAll("./uploads", os.ModePerm); err != nil {
+	if err := os.MkdirAll("./uploads", 0o755); err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create uploads directory")
 		return
 	}
@@ -71,7 +71,7 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 	fileName := filepath.Base(file.Filename)
 
 	if len(fileName) > maxFileNameLen {
-		utils.ErrorResponse(c,http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "file name is too long")
+		utils.ErrorResponse(c,http.StatusBadRequest, "BAD_REQUEST", "file name is too long")
 		return
 	}
 
@@ -88,8 +88,8 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 			utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "unsupported file content type")
 			return
 		}
-		if errors.Is(err, apperrors.ErrFileNameTooLong) {
-			utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file name is too long")
+		if errors.Is(err, apperrors.ErrEmptyCsvFile) {
+			utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "csv file is empty")
 			return
 		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to parse file")
