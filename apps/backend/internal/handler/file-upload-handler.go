@@ -95,7 +95,7 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 
 	info, err := h.asynqClient.Enqueue(task, tasks.FileParseOptions()...)
 	if err != nil {
-		if removeErr := os.Remove(dist); removeErr != nil && errors.Is(removeErr, os.ErrNotExist) {
+		if removeErr := os.Remove(dist); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			h.logger.Warn("failed to cleanup uploaded file after enqueueing file parse task", zap.Error(removeErr))
 		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to enqueue file parse task")

@@ -39,17 +39,34 @@ func (r *uploadJobRepository) FindByID(ctx context.Context, id uuid.UUID) (*mode
 }
 
 func (r *uploadJobRepository) UpdateJob(ctx context.Context, id uuid.UUID, status model.UploadJobStatus, errorMessage string) error {
-	return r.db.WithContext(ctx).Model(&model.UploadJob{}).Where("id = ?", id).Updates(map[string]interface{}{
+	tx := r.db.WithContext(ctx).Model(&model.UploadJob{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status": status,
 		"error":  errorMessage,
-	}).Error
+	})
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *uploadJobRepository) MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType, errorMessage string) error {
-	return r.db.WithContext(ctx).Model(&model.UploadJob{}).Where("id = ?", id).Updates(map[string]interface{}{
+	tx := r.db.WithContext(ctx).Model(&model.UploadJob{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":      model.UploadJobCompleted,
 		"content":     content,
 		"source_type": sourceType,
 		"error":       "",
-	}).Error
+	})
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
