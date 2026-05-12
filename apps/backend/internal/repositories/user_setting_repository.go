@@ -28,7 +28,10 @@ func NewUserSettingRepository(DB *gorm.DB) UserSettingRepository {
 func (r *userSettingRepository) FindByUserID(ctx context.Context, userID uuid.UUID) (*model.UserSetting, error) {
 	var setting model.UserSetting
 	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&setting).Error
-	return &setting, err
+	if err != nil {
+		return nil, err
+	}
+	return &setting, nil
 }
 
 func (r *userSettingRepository) Upsert(ctx context.Context, userID uuid.UUID, userSettings *model.UserSetting) error {

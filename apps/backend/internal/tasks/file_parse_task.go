@@ -35,7 +35,7 @@ func HandleFileParseTask(parser *service.ParserService, logger *zap.Logger) asyn
 	return func(ctx context.Context, task *asynq.Task) error {
 		var payload FileParsePayload
 		if err := json.Unmarshal(task.Payload(), &payload); err != nil {
-			return fmt.Errorf("json.Unmarshal failed: %w: %v", err, asynq.SkipRetry)
+			return  fmt.Errorf("json.Unmarshal failed: %v: %w", err, asynq.SkipRetry)
 		}
 		content, sourceType, err := parser.Parse(payload.FilePath)
 		if err != nil {
