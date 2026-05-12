@@ -1,4 +1,4 @@
-package models
+package model
 
 import (
 	"time"
@@ -18,11 +18,11 @@ type BusinessKnowledge struct {
 	IsActive   bool      `json:"is_active" gorm:"default:true"`
 	// Embedding  pgvector.Vector
 	// Embedding  pgvector.Vector `gorm:"type:vector(1536)"`
-	UserID     uuid.UUID      `json:"user_id" gorm:"type:uuid;not null"`
-	User       User           `json:"-" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `json:"-"`
+	UserID    uuid.UUID      `json:"user_id" gorm:"type:uuid;not null"`
+	User      User           `json:"-" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"-"`
 }
 
 func (b *BusinessKnowledge) BeforeCreate(tx *gorm.DB) error {

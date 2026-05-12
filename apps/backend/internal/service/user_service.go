@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/devrapture/omni/internal/config"
-	"github.com/devrapture/omni/internal/models"
+	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/utils"
 	"golang.org/x/oauth2"
@@ -22,8 +22,8 @@ var ErrInvalidOAuthState = errors.New("invalid oauth state")
 
 type UserService interface {
 	GetGoogleAuthURL(ctx context.Context) (string, error)
-	HandleGoogleCallback(ctx context.Context, code, state string) (*models.User, string, error)
-	HandleLoginWithGoogle(ctx context.Context, idToken string) (*models.User, string, error)
+	HandleGoogleCallback(ctx context.Context, code, state string) (*model.User, string, error)
+	HandleLoginWithGoogle(ctx context.Context, idToken string) (*model.User, string, error)
 }
 
 type userService struct {
@@ -65,7 +65,7 @@ func NewUserService(cfg *config.Config, repo repositories.UserRepository) UserSe
 	}
 }
 
-func (s *userService) HandleGoogleCallback(ctx context.Context, code, state string) (*models.User, string, error) {
+func (s *userService) HandleGoogleCallback(ctx context.Context, code, state string) (*model.User, string, error) {
 	if err := s.stateStore.ValidateAndConsume("google", state); err != nil {
 		return nil, "", err
 	}
@@ -124,7 +124,7 @@ func (s *userService) GetGithubAuthUrl(ctx context.Context) (string, error) {
 	return s.githubOAuthConfig.AuthCodeURL(state), nil
 }
 
-func (s *userService) HandleLoginWithGoogle(ctx context.Context, idToken string) (*models.User, string, error) {
+func (s *userService) HandleLoginWithGoogle(ctx context.Context, idToken string) (*model.User, string, error) {
 	claims, err := utils.VerifyGoogleIDToken(ctx, idToken, s.cfg.GOOGLE_CLIENT_ID)
 	if err != nil {
 		return nil, "", errors.New("failed to verify google id token")

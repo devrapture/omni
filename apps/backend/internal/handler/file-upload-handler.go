@@ -9,11 +9,13 @@ import (
 	"strings"
 
 	"github.com/devrapture/omni/internal/config"
-	apperrors "github.com/devrapture/omni/internal/errors"
+	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/service"
+	"github.com/devrapture/omni/internal/tasks"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
 )
 
@@ -22,26 +24,29 @@ const (
 )
 
 type FileUploadHandler struct {
-	cfg     *config.Config
-	service *service.ParserService
-	logger  *zap.Logger
+	cfg         *config.Config
+	service     *service.ParserService
+	asynqClient *asynq.Client
+	logger      *zap.Logger
 }
 
 type fileUploadResponse struct {
-	Content    string `json:"content"`
-	SourceType string `json:"source_type"`
-	FileName   string `json:"file_name"`
+	TaskID string                `json:"task_id"`
+	Queue  string                `json:"queue"`
+	Status model.UploadJobStatus `json:"status"`
 }
 
-func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, logger *zap.Logger) *FileUploadHandler {
+func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, asynqClient *asynq.Client, logger *zap.Logger) *FileUploadHandler {
 	return &FileUploadHandler{
-		cfg:     cfg,
-		service: service,
-		logger:  logger,
+		cfg:         cfg,
+		service:     service,
+		asynqClient: asynqClient,
+		logger:      logger,
 	}
 }
 
 func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
+	userID, _ := c.Get("userID")
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, h.cfg.FileUploadMaxBytes)
 	if err := c.Request.ParseMultipartForm(h.cfg.FileUploadMaxBytes); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file size is too large")
@@ -81,28 +86,25 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 		return
 	}
 
-	content, sourceType, err := h.service.Parse(dist)
+	task, err := tasks.NewFileParseTask(userID.(uuid.UUID), dist)
+
 	if err != nil {
-		if removeErr := os.Remove(dist); removeErr != nil && errors.Is(removeErr, os.ErrNotExist) {
-			h.logger.Warn("failed to cleanup uploaded file after parse failure", zap.String("path", dist), zap.Error(removeErr))
-		}
-		if errors.Is(err, apperrors.ErrNotSupportFile) {
-			utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "unsupported file content type")
-			return
-		}
-		if errors.Is(err, apperrors.ErrEmptyCsvFile) {
-			utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "csv file is empty")
-			return
-		}
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to parse file")
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create file parse task")
 		return
 	}
 
-	h.logger.Info("File parsed successfully", zap.String("source_type", sourceType), zap.Int("content_length", len(content)))
+	info, err := h.asynqClient.Enqueue(task, tasks.FileParseOptions()...)
+	if err != nil {
+		if removeErr := os.Remove(dist); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			h.logger.Warn("failed to cleanup uploaded file after enqueueing file parse task", zap.Error(removeErr))
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to enqueue file parse task")
+		return
+	}
 
-	utils.SuccessResponse(c, http.StatusOK, "file uploaded successfully", fileUploadResponse{
-		Content:    content,
-		SourceType: sourceType,
-		FileName:   fileName,
+	utils.SuccessResponse(c, http.StatusAccepted, "file uploaded and queued for parsing", fileUploadResponse{
+		TaskID: info.ID,
+		Queue:  info.Queue,
+		Status: model.UploadJobProcessing,
 	}, nil)
 }

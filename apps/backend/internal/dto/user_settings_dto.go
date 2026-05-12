@@ -1,9 +1,9 @@
 package dto
 
-import "github.com/devrapture/omni/internal/models"
+import "github.com/devrapture/omni/internal/model"
 
 type UpdateUserSettingsDTO struct {
-	Provider models.AIProvider `json:"provider" binding:"required,oneof=gemini"`
-	Mode     models.AIKeyMode  `json:"mode" binding:"required,oneof=user_key platform"`
-	APIKey   string            `json:"api_key"`
+	Provider model.AIProvider `json:"provider" binding:"required,oneof=gemini"`
+	Mode     model.AIKeyMode  `json:"mode" binding:"required,oneof=user_key platform"`
+	APIKey   string           `json:"api_key"`
 }

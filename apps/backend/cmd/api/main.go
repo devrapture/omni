@@ -7,10 +7,12 @@ import (
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/database"
 	handlers "github.com/devrapture/omni/internal/handler"
+	"github.com/devrapture/omni/internal/queue"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/routes"
 	"github.com/devrapture/omni/internal/service"
 	"github.com/devrapture/omni/internal/utils"
+	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
 )
 
@@ -44,10 +46,13 @@ func main() {
 	userSettingsSvc := service.NewUserSettingService(userSettingRepo, cfg)
 	parserSvc := service.NewParserService()
 
+	asynqClient := asynq.NewClient(queue.RedisClientOpt(cfg))
+	defer asynqClient.Close()
+
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userSvc)
 	userSettingHandler := handlers.NewUserSettingsHandler(userSettingsSvc)
-	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, logger)
+	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, asynqClient, logger)
 
 	deps := routes.HandlerDependencies{
 		AuthHandler:         authHandler,

@@ -1,4 +1,5 @@
-h1:LCsJY5rxzCgHiLoPLLB9/dLwDeXANAKwb70x9S0bPiM=
+h1:b6W8Kb97M0bZdqEsYd+8v32LI8FVWw6IDqc6h2QzH0A=
 20260503235500_add_users_table.sql h1:4sqSYo3xyNVcLA9tILsDppLxIU8ESUMpQKzSQueg5F0=
 20260504201500_add_users_settings_and_knowledge_table.sql h1:yIO9Bw6aawDPSXMogC/wK6woLRk6ZQ1IdafDZi9M+SQ=
 20260505094612_update_users_settings_table.sql h1:TJNSXiuLDa5Cv9PUv6XUhokMxXKlEUOjDEZkBxEbm80=
+20260511222815_add_upload_job_table.sql h1:92hyRcBjPliPxq7TnlRL0AR+jR9XmMViL37+gfL+pNQ=
