@@ -12,7 +12,7 @@ type UploadJobRepository interface {
 	Create(ctx context.Context, job *model.UploadJob) error
 	FindByID(ctx context.Context, id uuid.UUID) (*model.UploadJob, error)
 	UpdateJob(ctx context.Context, id uuid.UUID, status model.UploadJobStatus, errorMessage string) error
-	MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType, errorMessage string) error
+	MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType string) error
 }
 
 type uploadJobRepository struct {
@@ -54,7 +54,7 @@ func (r *uploadJobRepository) UpdateJob(ctx context.Context, id uuid.UUID, statu
 	return nil
 }
 
-func (r *uploadJobRepository) MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType, errorMessage string) error {
+func (r *uploadJobRepository) MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType string) error {
 	tx := r.db.WithContext(ctx).Model(&model.UploadJob{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":      model.UploadJobCompleted,
 		"content":     content,
