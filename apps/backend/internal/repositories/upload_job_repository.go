@@ -11,6 +11,8 @@ import (
 type UploadJobRepository interface {
 	Create(ctx context.Context, job *model.UploadJob) error
 	FindByID(ctx context.Context, id uuid.UUID) (*model.UploadJob, error)
+	UpdateJob(ctx context.Context, id uuid.UUID, status model.UploadJobStatus, errorMessage string) error
+	MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType, errorMessage string) error
 }
 
 type uploadJobRepository struct {
