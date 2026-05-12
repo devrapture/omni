@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/devrapture/omni/internal/models"
+	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/service"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -76,7 +76,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Success", response, nil)
 }
 
-func toUserPayload(u *models.User) UserPayload {
+func toUserPayload(u *model.User) UserPayload {
 	if u == nil {
 		return UserPayload{}
 	}

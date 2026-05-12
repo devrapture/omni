@@ -35,7 +35,9 @@ type Config struct {
 	EncryptionKey string
 
 	FileUploadMaxBytes int64
-	
+
+	// Redis
+	REDIS_URL string
 }
 
 func Load() (*Config, error) {
@@ -67,6 +69,15 @@ func Load() (*Config, error) {
 		jwtSecret = "dev-secret-do-not-use-in-production"
 	}
 
+	redisURL := getEnv("REDIS_URL", "")
+	if redisURL == "" {
+		if appEnv == "production" {
+			return nil, fmt.Errorf("REDIS_URL must be set in production")
+		}
+		log.Println("WARNING: using insecure default REDIS_URL for development")
+		redisURL = "redis://localhost:6379"
+	}
+
 	fileUploadMaxBytes, err := strconv.ParseInt(getEnv("FILE_UPLOAD_MAX_BYTES", "5242880"), 10, 64)
 	if err != nil || fileUploadMaxBytes <= 0 {
 		log.Println("invalid FILE_UPLOAD_MAX_BYTES, defaulting to 5242880")
@@ -87,6 +98,7 @@ func Load() (*Config, error) {
 		JwtExpires:            jwtHours,
 		JwtSecret:             jwtSecret,
 		FileUploadMaxBytes:    fileUploadMaxBytes,
+		REDIS_URL:             redisURL,
 	}
 
 	if _, err := decodeEncryptionKey(config.EncryptionKey); err != nil {

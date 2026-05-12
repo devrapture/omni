@@ -8,7 +8,7 @@ import (
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/dto"
 	apperrors "github.com/devrapture/omni/internal/errors"
-	"github.com/devrapture/omni/internal/models"
+	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/google/uuid"
@@ -16,7 +16,7 @@ import (
 )
 
 type UserSettingService interface {
-	GetUserSettings(ctx context.Context, userID uuid.UUID) (*models.UserSetting, error)
+	GetUserSettings(ctx context.Context, userID uuid.UUID) (*model.UserSetting, error)
 	UpdateUserSettings(ctx context.Context, userID uuid.UUID, dto dto.UpdateUserSettingsDTO) error
 	DeleteUserKey(ctx context.Context, userID uuid.UUID) error
 }
@@ -36,7 +36,7 @@ func NewUserSettingService(repo repositories.UserSettingRepository, cfg *config.
 	}
 }
 
-func (s *userSettingService) GetUserSettings(ctx context.Context, userID uuid.UUID) (*models.UserSetting, error) {
+func (s *userSettingService) GetUserSettings(ctx context.Context, userID uuid.UUID) (*model.UserSetting, error) {
 	settings, err := s.repo.FindByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -48,12 +48,12 @@ func (s *userSettingService) GetUserSettings(ctx context.Context, userID uuid.UU
 }
 
 func (s *userSettingService) UpdateUserSettings(ctx context.Context, userID uuid.UUID, dto dto.UpdateUserSettingsDTO) error {
-	setting := &models.UserSetting{
+	setting := &model.UserSetting{
 		UserID:   userID,
 		Mode:     dto.Mode,
 		Provider: dto.Provider,
 	}
-	if dto.Mode == models.AIKeyModeUserKey {
+	if dto.Mode == model.AIKeyModeUserKey {
 		apiKey := strings.TrimSpace(dto.APIKey)
 		if apiKey == "" {
 			return apperrors.ErrEmptyAPIKey

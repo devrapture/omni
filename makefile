@@ -11,7 +11,9 @@ LOCAL_DB_NAME?=omni
 ATLAS_DEV_DB_NAME?=omni-atlas
 
 # ── Phony Targets ─────────────────────────────────────────────
-.PHONY: dev dev-backend dev-frontend db-up db-down db-logs db-init db-reset \
+.PHONY: dev dev-backend dev-frontend dev-worker infra-up infra-down infra-logs \
+        asynqmon-up asynqmon-down asynqmon-logs \
+        db-up db-down db-logs db-init db-reset redis-up redis-down redis-logs redis-cli redis-ping \
         help migrate migrate-diff migrate-local migrate-staging migrate-prod \
         status status-staging status-prod dry-run-staging dry-run-prod lint
 
@@ -20,12 +22,25 @@ dev-backend: ## Start backend with Air
 	@echo "Starting backend with Air..."
 	cd $(BACKEND_DIR) && air
 
+dev-worker: ## Start backend worker
+	@echo "Starting backend worker..."
+	cd $(BACKEND_DIR) && go run ./cmd/worker
+
 dev-frontend: ## Start frontend
 	@echo "Starting frontend..."
 	cd $(FRONTEND_DIR) && pnpm dev
 
-dev: ## Run both backend and frontend (use multiple terminals or backgrounding)
-	@make -j 2 dev-backend dev-frontend
+dev: infra-up ## Run backend, worker, and frontend
+	@make -j 3 dev-backend dev-worker dev-frontend
+
+infra-up: db-up redis-up ## Start local infrastructure
+
+infra-down: ## Stop local infrastructure
+	@echo "Stopping local infrastructure..."
+	docker compose down
+
+infra-logs: ## Follow local infrastructure logs
+	docker compose logs -f postgres redis
 
 # ── Database ──────────────────────────────────────────────────
 db-up: ## Start Postgres with Docker Compose
@@ -49,6 +64,36 @@ db-reset: ## Recreate Postgres volume and rerun init scripts
 	@echo "Recreating Postgres volume..."
 	docker compose down -v
 	docker compose up -d postgres
+
+# ── Redis ─────────────────────────────────────────────────────
+redis-up: ## Start Redis with Docker Compose
+	@echo "Starting Redis with Docker Compose..."
+	docker compose up -d redis
+
+redis-down: ## Stop Redis container
+	@echo "Stopping Redis container..."
+	docker compose stop redis
+
+redis-logs: ## Follow Redis logs
+	docker compose logs -f redis
+
+redis-cli: ## Open Redis CLI
+	docker compose exec redis redis-cli
+
+redis-ping: ## Check Redis connectivity
+	docker compose exec redis redis-cli ping
+
+# ── Asynqmon ──────────────────────────────────────────────────
+asynqmon-up: ## Start Asynqmon dashboard
+	@echo "Starting Asynqmon dashboard at http://localhost:8081..."
+	docker compose up -d redis asynqmon
+
+asynqmon-down: ## Stop Asynqmon dashboard
+	@echo "Stopping Asynqmon dashboard..."
+	docker compose stop asynqmon
+
+asynqmon-logs: ## Follow Asynqmon logs
+	docker compose logs -f asynqmon
 
 # ── Help ────────────────────────────────────────────────────
 help: ## Show available commands

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/devrapture/omni/internal/models"
+	"github.com/devrapture/omni/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -13,21 +13,21 @@ type userRepo struct {
 }
 
 type UserRepository interface {
-	FindOrCreateUser(ctx context.Context, userID, userEmail, userName, userPicture, provider string) (*models.User, error)
+	FindOrCreateUser(ctx context.Context, userID, userEmail, userName, userPicture, provider string) (*model.User, error)
 }
 
 func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepo{db: db}
 }
 
-func (r *userRepo) FindOrCreateUser(ctx context.Context, userID, userEmail, userName, userPicture, provider string) (*models.User, error) {
-	var user models.User
+func (r *userRepo) FindOrCreateUser(ctx context.Context, userID, userEmail, userName, userPicture, provider string) (*model.User, error) {
+	var user model.User
 	result := r.db.WithContext(ctx).Where("email=?", userEmail).First(&user)
 	if result.Error != nil {
 		if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, result.Error
 		}
-		user = models.User{
+		user = model.User{
 			Name:       userName,
 			Email:      userEmail,
 			ProviderID: userID,
@@ -39,10 +39,10 @@ func (r *userRepo) FindOrCreateUser(ctx context.Context, userID, userEmail, user
 				return err
 			}
 
-			user.UserSetting = &models.UserSetting{
+			user.UserSetting = &model.UserSetting{
 				UserID:   user.ID,
-				Provider: models.AIProviderGemini,
-				Mode:     models.AIKeyModePlatform,
+				Provider: model.AIProviderGemini,
+				Mode:     model.AIKeyModePlatform,
 			}
 			return tx.Create(user.UserSetting).Error
 		}); err != nil {
