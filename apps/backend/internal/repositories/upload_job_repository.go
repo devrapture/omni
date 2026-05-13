@@ -11,6 +11,7 @@ import (
 type UploadJobRepository interface {
 	Create(ctx context.Context, job *model.UploadJob) error
 	FindByID(ctx context.Context, id uuid.UUID) (*model.UploadJob, error)
+	FindByIDandUserID(ctx context.Context, userID, jobID uuid.UUID) (*model.UploadJob, error)
 	UpdateJob(ctx context.Context, id uuid.UUID, status model.UploadJobStatus, errorMessage string) error
 	MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType string) error
 }
@@ -32,6 +33,15 @@ func (r *uploadJobRepository) Create(ctx context.Context, job *model.UploadJob) 
 func (r *uploadJobRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.UploadJob, error) {
 	var job model.UploadJob
 	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&job).Error; err != nil {
+		return nil, err
+	}
+
+	return &job, nil
+}
+
+func (r *uploadJobRepository) FindByIDandUserID(ctx context.Context, userID, jobID uuid.UUID) (*model.UploadJob, error) {
+	var job model.UploadJob
+	if err := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", jobID, userID).First(&job).Error; err != nil {
 		return nil, err
 	}
 
