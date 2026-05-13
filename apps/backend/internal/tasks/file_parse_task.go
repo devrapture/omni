@@ -48,7 +48,13 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 
 		content, sourceType, err := parser.Parse(payload.FilePath)
 		if err != nil {
-			_ = uploadJobRepo.UpdateJob(ctx, payload.JobID, model.UploadJobFailed, err.Error())
+			retried, hasRetryCount := asynq.GetRetryCount(ctx)
+			maxRetry, hasMaxRetry := asynq.GetMaxRetry(ctx)
+			if hasRetryCount && hasMaxRetry && retried >= maxRetry {
+				if updateErr := uploadJobRepo.UpdateJob(ctx, payload.JobID, model.UploadJobFailed, err.Error()); updateErr != nil {
+					return fmt.Errorf("mark upload job failed: %w", updateErr)
+				}
+			}
 			return err
 		}
 

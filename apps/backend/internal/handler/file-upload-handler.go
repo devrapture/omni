@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 const (
@@ -98,6 +99,9 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 
 	if err := h.uploadJobRepo.Create(c.Request.Context(), job); err != nil {
 		h.logger.Error("failed to create upload job", zap.Error(err))
+		if removeErr := os.Remove(dist); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			h.logger.Warn("failed to cleanup uploaded file after job creation failure", zap.Error(removeErr))
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create upload job")
 		return
 	}
@@ -119,7 +123,7 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusAccepted, "file uploaded and queued for parsing", fileUploadResponse{
 		TaskID: job.ID.String(),
 		Queue:  info.Queue,
-		Status: model.UploadJobProcessing,
+		Status: job.Status,
 	}, nil)
 }
 
@@ -133,6 +137,10 @@ func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
 
 	job, err := h.uploadJobRepo.FindByIDandUserID(c.Request.Context(), userID.(uuid.UUID), jobID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "UPLOAD_JOB_NOT_FOUND", "upload job not found")
+			return
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get upload job")
 		return
 	}
