@@ -10,6 +10,7 @@ import (
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/model"
+	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/service"
 	"github.com/devrapture/omni/internal/tasks"
 	"github.com/devrapture/omni/internal/utils"
@@ -17,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 const (
@@ -24,10 +26,11 @@ const (
 )
 
 type FileUploadHandler struct {
-	cfg         *config.Config
-	service     *service.ParserService
-	asynqClient *asynq.Client
-	logger      *zap.Logger
+	cfg           *config.Config
+	service       *service.ParserService
+	asynqClient   *asynq.Client
+	uploadJobRepo repositories.UploadJobRepository
+	logger        *zap.Logger
 }
 
 type fileUploadResponse struct {
@@ -36,12 +39,13 @@ type fileUploadResponse struct {
 	Status model.UploadJobStatus `json:"status"`
 }
 
-func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, asynqClient *asynq.Client, logger *zap.Logger) *FileUploadHandler {
+func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, asynqClient *asynq.Client, uploadJobRepo repositories.UploadJobRepository, logger *zap.Logger) *FileUploadHandler {
 	return &FileUploadHandler{
-		cfg:         cfg,
-		service:     service,
-		asynqClient: asynqClient,
-		logger:      logger,
+		cfg:           cfg,
+		service:       service,
+		asynqClient:   asynqClient,
+		uploadJobRepo: uploadJobRepo,
+		logger:        logger,
 	}
 }
 
@@ -86,8 +90,22 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 		return
 	}
 
-	task, err := tasks.NewFileParseTask(userID.(uuid.UUID), dist)
+	job := &model.UploadJob{
+		ID:       uuid.New(),
+		UserID:   userID.(uuid.UUID),
+		Status:   model.UploadJobQueued,
+		FilePath: dist,
+	}
 
+	if err := h.uploadJobRepo.Create(c.Request.Context(), job); err != nil {
+		h.logger.Error("failed to create upload job", zap.Error(err))
+		if removeErr := os.Remove(dist); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			h.logger.Warn("failed to cleanup uploaded file after job creation failure", zap.Error(removeErr))
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create upload job")
+		return
+	}
+	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), dist)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create file parse task")
 		return
@@ -103,8 +121,39 @@ func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusAccepted, "file uploaded and queued for parsing", fileUploadResponse{
-		TaskID: info.ID,
+		TaskID: job.ID.String(),
 		Queue:  info.Queue,
-		Status: model.UploadJobProcessing,
+		Status: job.Status,
+	}, nil)
+}
+
+func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	jobID, err := uuid.Parse(c.Param("job_id"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid job_id")
+		return
+	}
+
+	job, err := h.uploadJobRepo.FindByIDandUserID(c.Request.Context(), userID.(uuid.UUID), jobID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "UPLOAD_JOB_NOT_FOUND", "upload job not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get upload job")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "upload job retrieved", gin.H{
+		"job_id":       job.ID,
+		"status":       job.Status,
+		"source_type":  job.SourceType,
+		"content":      job.Content,
+		"error":        job.Error,
+		"created_at":   job.CreatedAt,
+		"updated_at":   job.UpdatedAt,
+		"is_completed": job.Status == model.UploadJobCompleted,
+		"is_failed":    job.Status == model.UploadJobFailed,
 	}, nil)
 }

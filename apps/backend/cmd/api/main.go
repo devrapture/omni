@@ -40,6 +40,7 @@ func main() {
 	// Repositories
 	userRepo := repositories.NewUserRepository(db)
 	userSettingRepo := repositories.NewUserSettingRepository(db)
+	uploadJobRepo := repositories.NewUploadJobRepository(db)
 
 	// Services
 	userSvc := service.NewUserService(cfg, userRepo)
@@ -52,7 +53,7 @@ func main() {
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userSvc)
 	userSettingHandler := handlers.NewUserSettingsHandler(userSettingsSvc)
-	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, asynqClient, logger)
+	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, asynqClient, uploadJobRepo, logger)
 
 	deps := routes.HandlerDependencies{
 		AuthHandler:         authHandler,

@@ -17,6 +17,7 @@ func main() {
 		&model.User{},
 		&model.BusinessKnowledge{},
 		&model.UserSetting{},
+		&model.UploadJob{},
 	// add all model...
 	)
 	if err != nil {
