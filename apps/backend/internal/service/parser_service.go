@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	apperrors "github.com/devrapture/omni/internal/errors"
+	"github.com/fumiama/go-docx"
 )
 
 type ParserService struct{}
@@ -40,6 +41,12 @@ func (s *ParserService) Parse(path string) (text, sourceType string, err error) 
 			return "", "", err
 		}
 		sourceType = ".csv"
+	case ".docx":
+		text, err = s.parseDocx(path)
+		if err != nil {
+			return "", "", err
+		}
+		sourceType = ".docx"
 	default:
 		return "", "", apperrors.ErrNotSupportFile
 	}
@@ -97,4 +104,52 @@ func (s *ParserService) parseCSV(path string) (string, error) {
 	}
 
 	return parsedText, nil
+}
+
+func (s *ParserService) parseDocx(path string) (string, error) {
+	readFile, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer readFile.Close()
+
+	fileinfo, err := readFile.Stat()
+	if err != nil {
+		return "", err
+	}
+
+	size := fileinfo.Size()
+	doc, err := docx.Parse(readFile, size)
+	if err != nil {
+		return "", err
+	}
+
+	var text strings.Builder
+	for _, it := range doc.Document.Body.Items {
+		switch item := it.(type) {
+		case *docx.Paragraph:
+			writeDocxText(&text, item.String())
+		case *docx.Table:
+			writeDocxText(&text, item.String())
+		}
+	}
+
+	parsedText := strings.TrimSpace(text.String())
+	if parsedText == "" {
+		return "", apperrors.ErrEmptyDocxFile
+	}
+
+	return parsedText, nil
+}
+
+func writeDocxText(text *strings.Builder, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return
+	}
+
+	if text.Len() > 0 {
+		text.WriteByte('\n')
+	}
+	text.WriteString(value)
 }

@@ -15,6 +15,8 @@ var (
 	ErrNotSupportFile = errors.New("unsupported file type")
 	// ErrEmptyCsvFile is returned when a csv file is empty
 	ErrEmptyCsvFile = errors.New("csv file is empty")
+	// ErrEmptyDocxFile is returned when a docx file has no readable text
+	ErrEmptyDocxFile = errors.New("docx file is empty")
 	// ErrFileNameTooLong is returned when a file name is too long
 	ErrFileNameTooLong = errors.New("File name is too long")
 )
