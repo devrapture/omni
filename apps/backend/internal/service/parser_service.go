@@ -2,13 +2,17 @@ package service
 
 import (
 	"encoding/csv"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	// "github.com/ledongthuc/pdf"
+
 	apperrors "github.com/devrapture/omni/internal/errors"
 	"github.com/fumiama/go-docx"
+	"github.com/gen2brain/go-fitz"
 )
 
 type ParserService struct{}
@@ -47,6 +51,12 @@ func (s *ParserService) Parse(path string) (text, sourceType string, err error) 
 			return "", "", err
 		}
 		sourceType = ".docx"
+	case ".pdf":
+		text, err = s.parsePdf(path)
+		if err != nil {
+			return "", "", err
+		}
+		sourceType = ".pdf"
 	default:
 		return "", "", apperrors.ErrNotSupportFile
 	}
@@ -139,6 +149,31 @@ func (s *ParserService) parseDocx(path string) (string, error) {
 		return "", apperrors.ErrEmptyDocxFile
 	}
 
+	return parsedText, nil
+}
+
+func (s *ParserService) parsePdf(path string) (string, error) {
+	doc, err := fitz.New(path)
+	if err != nil {
+		panic(err)
+	}
+
+	defer doc.Close()
+
+	var text strings.Builder
+
+	for n := 0; n < doc.NumPage(); n++ {
+		content, err := doc.Text(n)
+		if err != nil {
+			log.Printf("page %d error: %v", n, err)
+			continue
+		}
+		writeDocxText(&text, content)
+	}
+	parsedText := strings.TrimSpace(text.String())
+	if parsedText == "" {
+		return "", apperrors.ErrNotSupportedPdfFile
+	}
 	return parsedText, nil
 }
 

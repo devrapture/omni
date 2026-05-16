@@ -19,4 +19,6 @@ var (
 	ErrEmptyDocxFile = errors.New("docx file is empty")
 	// ErrFileNameTooLong is returned when a file name is too long
 	ErrFileNameTooLong = errors.New("File name is too long")
+	// ErrNotSupportedPdfFile is returned when a pdf file is not supported
+	ErrNotSupportedPdfFile = errors.New("unsupported pdf file")
 )
