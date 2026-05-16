@@ -155,7 +155,7 @@ func (s *ParserService) parseDocx(path string) (string, error) {
 func (s *ParserService) parsePdf(path string) (string, error) {
 	doc, err := fitz.New(path)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	defer doc.Close()
