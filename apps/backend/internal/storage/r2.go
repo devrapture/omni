@@ -57,7 +57,7 @@ func (s *R2Storage) GetObject(ctx context.Context, key string) (io.ReadCloser, e
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	return result.Body, nil

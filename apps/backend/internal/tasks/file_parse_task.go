@@ -48,12 +48,12 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 		}
 
 		if err := uploadJobRepo.UpdateJob(ctx, payload.JobID, model.UploadJobProcessing, ""); err != nil {
-			return err
+			return handleParseFailure(ctx, r2, payload.ObjectKey, err, payload.JobID, uploadJobRepo)
 		}
 
 		localPath, cleanup, err := downloadR2ObjectToTempFile(ctx, r2, payload.ObjectKey)
 		if err != nil {
-			return err
+			return handleParseFailure(ctx, r2, payload.ObjectKey, err, payload.JobID, uploadJobRepo)
 		}
 
 		defer cleanup()
@@ -62,16 +62,6 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 		if err != nil {
 			return handleParseFailure(ctx, r2, payload.ObjectKey, err, payload.JobID, uploadJobRepo)
 		}
-		// if err != nil {
-		// 	retried, hasRetryCount := asynq.GetRetryCount(ctx)
-		// 	maxRetry, hasMaxRetry := asynq.GetMaxRetry(ctx)
-		// 	if hasRetryCount && hasMaxRetry && retried >= maxRetry {
-		// 		if updateErr := uploadJobRepo.UpdateJob(ctx, payload.JobID, model.UploadJobFailed, err.Error()); updateErr != nil {
-		// 			return fmt.Errorf("mark upload job failed: %w", updateErr)
-		// 		}
-		// 	}
-		// 	return err
-		// }
 
 		if err := uploadJobRepo.MarkCompleted(ctx, payload.JobID, content, sourceType); err != nil {
 			return err
