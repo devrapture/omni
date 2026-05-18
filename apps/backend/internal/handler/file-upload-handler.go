@@ -4,15 +4,21 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
+	"time"
+
+	// "os"
+	"path/filepath"
 
 	"github.com/devrapture/omni/internal/config"
+	"github.com/devrapture/omni/internal/dto"
 	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/service"
+	"github.com/devrapture/omni/internal/storage"
 	"github.com/devrapture/omni/internal/tasks"
+
+	// "github.com/devrapture/omni/internal/tasks"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -21,115 +27,29 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	maxFileNameLen = 255
-)
-
 type FileUploadHandler struct {
 	cfg           *config.Config
 	service       *service.ParserService
 	asynqClient   *asynq.Client
 	uploadJobRepo repositories.UploadJobRepository
+	r2            *storage.R2Storage
 	logger        *zap.Logger
 }
 
-type fileUploadResponse struct {
-	TaskID string                `json:"task_id"`
-	Queue  string                `json:"queue"`
-	Status model.UploadJobStatus `json:"status"`
-}
-
-func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, asynqClient *asynq.Client, uploadJobRepo repositories.UploadJobRepository, logger *zap.Logger) *FileUploadHandler {
+func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, asynqClient *asynq.Client, uploadJobRepo repositories.UploadJobRepository, r2 *storage.R2Storage, logger *zap.Logger) *FileUploadHandler {
 	return &FileUploadHandler{
 		cfg:           cfg,
 		service:       service,
 		asynqClient:   asynqClient,
 		uploadJobRepo: uploadJobRepo,
+		r2:            r2,
 		logger:        logger,
 	}
 }
 
-func (h *FileUploadHandler) HandleFileUpload(c *gin.Context) {
-	userID, _ := c.Get("userID")
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, h.cfg.FileUploadMaxBytes)
-	if err := c.Request.ParseMultipartForm(h.cfg.FileUploadMaxBytes); err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file size is too large")
-		return
-	}
-
-	file, err := c.FormFile("file")
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file is required")
-		return
-	}
-
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	src, err := file.Open()
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "failed to read uploaded file")
-		return
-	}
-	defer src.Close()
-
-	if err := os.MkdirAll("./uploads", 0o755); err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create uploads directory")
-		return
-	}
-
-	fileName := filepath.Base(file.Filename)
-
-	if len(fileName) > maxFileNameLen {
-		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file name is too long")
-		return
-	}
-
-	storedFileName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
-	dist := filepath.Join("./uploads", storedFileName)
-	if err := c.SaveUploadedFile(file, dist); err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to store file")
-		return
-	}
-
-	job := &model.UploadJob{
-		ID:       uuid.New(),
-		UserID:   userID.(uuid.UUID),
-		Status:   model.UploadJobQueued,
-		FilePath: dist,
-	}
-
-	if err := h.uploadJobRepo.Create(c.Request.Context(), job); err != nil {
-		h.logger.Error("failed to create upload job", zap.Error(err))
-		if removeErr := os.Remove(dist); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			h.logger.Warn("failed to cleanup uploaded file after job creation failure", zap.Error(removeErr))
-		}
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create upload job")
-		return
-	}
-	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), dist)
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create file parse task")
-		return
-	}
-
-	info, err := h.asynqClient.Enqueue(task, tasks.FileParseOptions()...)
-	if err != nil {
-		if removeErr := os.Remove(dist); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			h.logger.Warn("failed to cleanup uploaded file after enqueueing file parse task", zap.Error(removeErr))
-		}
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to enqueue file parse task")
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusAccepted, "file uploaded and queued for parsing", fileUploadResponse{
-		TaskID: job.ID.String(),
-		Queue:  info.Queue,
-		Status: job.Status,
-	}, nil)
-}
-
 func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
 	userID, _ := c.Get("userID")
-	jobID, err := uuid.Parse(c.Param("job_id"))
+	jobID, err := uuid.Parse(c.Param("jobID"))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid job_id")
 		return
@@ -156,4 +76,128 @@ func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
 		"is_completed": job.Status == model.UploadJobCompleted,
 		"is_failed":    job.Status == model.UploadJobFailed,
 	}, nil)
+}
+
+func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	var req dto.PresignUploadRequest
+	if err := c.ShouldBind(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(req.FileName))
+	if !isAllowedUploadExtension(ext) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file extension is not allowed")
+		return
+	}
+
+	jobID := uuid.New()
+	objectKey := fmt.Sprintf("uploads/%s/%s%s", userID.(uuid.UUID).String(), jobID.String(), ext)
+
+	uploadURL, err := h.r2.PresignPutObject(c.Request.Context(), objectKey, time.Duration(h.cfg.R2_PRESIGN_TTL_SECONDS)*time.Second)
+	if err != nil {
+		h.logger.Error("failed to presign upload URL", zap.Error(err))
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to presign upload URL")
+		return
+	}
+
+	job := &model.UploadJob{
+		ID:         jobID,
+		Status:     model.UploadJobQueued,
+		UserID:     userID.(uuid.UUID),
+		ObjectKey:  objectKey,
+		SourceType: ext,
+	}
+
+	if err := h.uploadJobRepo.Create(c.Request.Context(), job); err != nil {
+		h.logger.Error("failed to create upload job", zap.Error(err))
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create upload job")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusAccepted, "upload url created", gin.H{
+		"job_id":     job.ID,
+		"object_key": objectKey,
+		"upload_url": uploadURL,
+	}, nil)
+}
+
+func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	jobID, err := uuid.Parse(c.Param("jobID"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid job_id")
+		return
+	}
+
+	var req dto.CompleteUploadRequest
+
+	if err := c.ShouldBind(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	job, err := h.uploadJobRepo.FindByIDandUserID(c.Request.Context(), userID.(uuid.UUID), jobID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "UPLOAD_JOB_NOT_FOUND", "upload job not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get upload job")
+		return
+	}
+
+	if job.ObjectKey != req.ObjectKey {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "object key does not match upload job")
+		return
+	}
+
+	if err := h.uploadJobRepo.ClaimQueuedJob(c.Request.Context(), job.ID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusConflict, "UPLOAD_JOB_ALREADY_PROCESSING", "upload job has already been queued for parsing")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to update upload job")
+		return
+	}
+
+	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), job.ObjectKey)
+	if err != nil {
+		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
+			h.logger.Error("failed to release upload job claim after task creation failure", zap.Error(releaseErr))
+			utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to release upload job claim")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create file parse task")
+		return
+	}
+
+	info, err := h.asynqClient.Enqueue(task, tasks.FileParseOptions()...)
+
+	if err != nil {
+		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
+			h.logger.Error("failed to release upload job claim after enqueue failure", zap.Error(releaseErr))
+			utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to release upload job claim")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to enqueue file parse task")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusAccepted, "file uploaded and queued for parsing", gin.H{
+		"job_id": job.ID.String(),
+		"queue":  info.Queue,
+		"status": model.UploadJobProcessing,
+	}, nil)
+
+}
+
+func isAllowedUploadExtension(ext string) bool {
+	switch ext {
+	case ".csv", ".pdf", ".docx", ".xlsx":
+		return true
+	default:
+		return false
+	}
 }

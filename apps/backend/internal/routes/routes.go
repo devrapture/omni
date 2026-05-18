@@ -46,9 +46,10 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config) *gin.Engin
 		fileUpload.Use(middleware.AuthMiddleware(cfg))
 
 		fileUpload.
-			POST("", deps.FileUploadHandler.HandleFileUpload).
-			GET("/job/:job_id", deps.FileUploadHandler.GetUploadJob)
-
+			// POST("", deps.FileUploadHandler.HandleFileUpload).
+			POST("/presign", deps.FileUploadHandler.CreatePresignedUploadURL).
+			POST("/jobs/:jobID/complete", deps.FileUploadHandler.CompleteUpload).
+			GET("/jobs/:jobID", deps.FileUploadHandler.GetUploadJob)
 	}
 
 	return r

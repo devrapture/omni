@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/routes"
 	"github.com/devrapture/omni/internal/service"
+	"github.com/devrapture/omni/internal/storage"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
@@ -37,6 +39,11 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
+	r2Storage, err := storage.NewR2Storage(context.Background(), cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize R2 storage: %v", err)
+	}
+
 	// Repositories
 	userRepo := repositories.NewUserRepository(db)
 	userSettingRepo := repositories.NewUserSettingRepository(db)
@@ -53,7 +60,7 @@ func main() {
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userSvc)
 	userSettingHandler := handlers.NewUserSettingsHandler(userSettingsSvc)
-	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, asynqClient, uploadJobRepo, logger)
+	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, asynqClient, uploadJobRepo, r2Storage, logger)
 
 	deps := routes.HandlerDependencies{
 		AuthHandler:         authHandler,

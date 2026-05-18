@@ -38,6 +38,13 @@ type Config struct {
 
 	// Redis
 	REDIS_URL string
+
+	// Cloudflare R2
+	R2_ACCOUNT_ID          string
+	R2_BUCKET_NAME         string
+	R2_SECRET_KEY          string
+	R2_ACCESS_KEY          string
+	R2_PRESIGN_TTL_SECONDS int64
 }
 
 func Load() (*Config, error) {
@@ -84,21 +91,32 @@ func Load() (*Config, error) {
 		fileUploadMaxBytes = 5 << 20
 	}
 
+	r2PresignTTLSeconds, err := strconv.ParseInt(getEnv("R2_PRESIGN_TTL_SECONDS", "900"), 10, 64)
+	if err != nil || r2PresignTTLSeconds <= 0 {
+		log.Println("invalid R2_PRESIGN_TTL_SECONDS, defaulting to 900")
+		r2PresignTTLSeconds = 900
+	}
+
 	config := &Config{
-		AppEnv:                appEnv,
-		Port:                  getEnv("PORT", "8080"),
-		DatabaseURL:           dbURL,
-		TelegramBotToken:      mustEnv("TELEGRAM_BOT_TOKEN"),
-		TelegramWebhookSecret: mustEnv("TELEGRAM_WEBHOOK_SECRET"),
-		GeminiAPIKey:          mustEnv("GEMINI_API_KEY"),
-		GOOGLE_CLIENT_ID:      mustEnv("GOOGLE_CLIENT_ID"),
-		GOOGLE_CLIENT_SECRET:  mustEnv("GOOGLE_CLIENT_SECRET"),
-		GOOGLE_REDIRECT_URL:   mustEnv("GOOGLE_REDIRECT_URL"),
-		EncryptionKey:         mustEnv("ENCRYPTION_KEY"),
-		JwtExpires:            jwtHours,
-		JwtSecret:             jwtSecret,
-		FileUploadMaxBytes:    fileUploadMaxBytes,
-		REDIS_URL:             redisURL,
+		AppEnv:                 appEnv,
+		Port:                   getEnv("PORT", "8080"),
+		DatabaseURL:            dbURL,
+		TelegramBotToken:       mustEnv("TELEGRAM_BOT_TOKEN"),
+		TelegramWebhookSecret:  mustEnv("TELEGRAM_WEBHOOK_SECRET"),
+		GeminiAPIKey:           mustEnv("GEMINI_API_KEY"),
+		GOOGLE_CLIENT_ID:       mustEnv("GOOGLE_CLIENT_ID"),
+		GOOGLE_CLIENT_SECRET:   mustEnv("GOOGLE_CLIENT_SECRET"),
+		GOOGLE_REDIRECT_URL:    mustEnv("GOOGLE_REDIRECT_URL"),
+		R2_ACCOUNT_ID:          mustEnv("R2_ACCOUNT_ID"),
+		R2_BUCKET_NAME:         mustEnv("R2_BUCKET_NAME"),
+		R2_SECRET_KEY:          mustEnv("R2_SECRET_KEY"),
+		R2_ACCESS_KEY:          mustEnv("R2_ACCESS_KEY"),
+		R2_PRESIGN_TTL_SECONDS: r2PresignTTLSeconds,
+		EncryptionKey:          mustEnv("ENCRYPTION_KEY"),
+		JwtExpires:             jwtHours,
+		JwtSecret:              jwtSecret,
+		FileUploadMaxBytes:     fileUploadMaxBytes,
+		REDIS_URL:              redisURL,
 	}
 
 	if _, err := decodeEncryptionKey(config.EncryptionKey); err != nil {
