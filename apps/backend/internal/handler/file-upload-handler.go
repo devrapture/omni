@@ -95,6 +95,13 @@ func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
 	jobID := uuid.New()
 	objectKey := fmt.Sprintf("uploads/%s/%s%s", userID.(uuid.UUID).String(), jobID.String(), ext)
 
+	uploadURL, err := h.r2.PresignPutObject(c.Request.Context(), objectKey, time.Duration(h.cfg.R2_PRESIGN_TTL_SECONDS)*time.Second)
+	if err != nil {
+		h.logger.Error("failed to presign upload URL", zap.Error(err))
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to presign upload URL")
+		return
+	}
+
 	job := &model.UploadJob{
 		ID:         jobID,
 		Status:     model.UploadJobQueued,
@@ -106,13 +113,6 @@ func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
 	if err := h.uploadJobRepo.Create(c.Request.Context(), job); err != nil {
 		h.logger.Error("failed to create upload job", zap.Error(err))
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create upload job")
-		return
-	}
-
-	uploadURL, err := h.r2.PresignPutObject(c.Request.Context(), objectKey, time.Duration(h.cfg.R2_PRESIGN_TTL_SECONDS)*time.Second)
-	if err != nil {
-		h.logger.Error("failed to presign upload URL", zap.Error(err))
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to presign upload URL")
 		return
 	}
 
@@ -164,6 +164,11 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 
 	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), job.ObjectKey)
 	if err != nil {
+		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
+			h.logger.Error("failed to release upload job claim after task creation failure", zap.Error(releaseErr))
+			utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to release upload job claim")
+			return
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create file parse task")
 		return
 	}
@@ -171,6 +176,11 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 	info, err := h.asynqClient.Enqueue(task, tasks.FileParseOptions()...)
 
 	if err != nil {
+		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
+			h.logger.Error("failed to release upload job claim after enqueue failure", zap.Error(releaseErr))
+			utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to release upload job claim")
+			return
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to enqueue file parse task")
 		return
 	}
