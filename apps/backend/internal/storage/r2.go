@@ -37,11 +37,10 @@ func NewR2Storage(ctx context.Context, cfg *config.Config) (*R2Storage, error) {
 	}, nil
 }
 
-func (s *R2Storage) PresignPutObject(ctx context.Context, key, contentType string, expiresIn time.Duration) (string, error) {
+func (s *R2Storage) PresignPutObject(ctx context.Context, key string, expiresIn time.Duration) (string, error) {
 	result, err := s.presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
-		ContentType: aws.String(contentType),
 	}, func(po *s3.PresignOptions) {
 		po.Expires = expiresIn
 	})

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/devrapture/omni/internal/config"
@@ -8,6 +9,7 @@ import (
 	"github.com/devrapture/omni/internal/queue"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/service"
+	"github.com/devrapture/omni/internal/storage"
 	"github.com/devrapture/omni/internal/tasks"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/hibiken/asynq"
@@ -30,6 +32,11 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
+	r2Storage, err := storage.NewR2Storage(context.Background(), cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize R2 storage: %v", err)
+	}
+
 	uploadJobRepo := repositories.NewUploadJobRepository(db)
 	parserSvc := service.NewParserService()
 
@@ -45,7 +52,7 @@ func main() {
 	)
 
 	mux := asynq.NewServeMux()
-	mux.HandleFunc(tasks.TypeFileParse, tasks.HandleFileParseTask(uploadJobRepo, parserSvc, logger))
+	mux.HandleFunc(tasks.TypeFileParse, tasks.HandleFileParseTask(uploadJobRepo, parserSvc, r2Storage, logger))
 
 	logger.Info("Starting file parser worker")
 

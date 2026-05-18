@@ -65,6 +65,7 @@ func (s *ParserService) Parse(path string) (text, sourceType string, err error) 
 }
 
 func isSupportedParserContent(ext, mime string) bool {
+	log.Printf("ext: %s, mime: %s", ext, mime)
 	switch ext {
 	case ".csv":
 		return mime == "text/csv" || strings.HasPrefix(mime, "text/plain")
