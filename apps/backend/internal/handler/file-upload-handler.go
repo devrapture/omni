@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	// "os"
@@ -46,7 +47,6 @@ func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, as
 	}
 }
 
-
 func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	jobID, err := uuid.Parse(c.Param("jobID"))
@@ -66,9 +66,9 @@ func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "upload job retrieved", gin.H{
-		"job_id":      job.ID,
-		"status":      job.Status,
-		"source_type": job.SourceType,
+		"job_id":       job.ID,
+		"status":       job.Status,
+		"source_type":  job.SourceType,
 		"content":      job.Content,
 		"error":        job.Error,
 		"created_at":   job.CreatedAt,
@@ -86,7 +86,7 @@ func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
 		return
 	}
 
-	ext := filepath.Ext(req.FileName)
+	ext := strings.ToLower(filepath.Ext(req.FileName))
 	if !isAllowedUploadExtension(ext) {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file extension is not allowed")
 		return
@@ -140,12 +140,25 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 
 	job, err := h.uploadJobRepo.FindByIDandUserID(c.Request.Context(), userID.(uuid.UUID), jobID)
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusNotFound, "UPLOAD_JOB_NOT_FOUND", "upload job not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "UPLOAD_JOB_NOT_FOUND", "upload job not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get upload job")
 		return
 	}
 
 	if job.ObjectKey != req.ObjectKey {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "object key does not match upload job")
+		return
+	}
+
+	if err := h.uploadJobRepo.ClaimQueuedJob(c.Request.Context(), job.ID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusConflict, "UPLOAD_JOB_ALREADY_PROCESSING", "upload job has already been queued for parsing")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to update upload job")
 		return
 	}
 
@@ -165,7 +178,7 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusAccepted, "file uploaded and queued for parsing", gin.H{
 		"job_id": job.ID.String(),
 		"queue":  info.Queue,
-		"status": job.Status,
+		"status": model.UploadJobProcessing,
 	}, nil)
 
 }
