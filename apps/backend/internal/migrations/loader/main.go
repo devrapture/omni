@@ -24,5 +24,6 @@ func main() {
 		io.WriteString(os.Stderr, err.Error())
 		os.Exit(1)
 	}
+	io.WriteString(os.Stdout, "CREATE EXTENSION IF NOT EXISTS vector;\n")
 	io.WriteString(os.Stdout, stmts)
 }
