@@ -68,7 +68,7 @@ func main() {
 	// Handlers
 	authHandler := handlers.NewAuthHandler(userSvc)
 	userSettingHandler := handlers.NewUserSettingsHandler(userSettingsSvc)
-	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, asynqClient, uploadJobRepo, r2Storage, logger)
+	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, asynqClient, uploadJobRepo, businessRepo, r2Storage, logger)
 	businessHandler := handlers.NewBusinessHandler(businessSvc)
 
 	deps := routes.HandlerDependencies{

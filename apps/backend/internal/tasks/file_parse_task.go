@@ -30,11 +30,14 @@ type FileParsePayload struct {
 	Title      string    `json:"title"`
 }
 
-func NewFileParseTask(jobID, userID uuid.UUID, objectKey string) (*asynq.Task, error) {
+func NewFileParseTask(jobID, userID, businessID uuid.UUID, objectKey, sourceName, title string) (*asynq.Task, error) {
 	payload, err := json.Marshal(FileParsePayload{
-		JobID:     jobID,
-		UserID:    userID,
-		ObjectKey: objectKey,
+		JobID:      jobID,
+		UserID:     userID,
+		BusinessID: businessID,
+		ObjectKey:  objectKey,
+		SourceName: sourceName,
+		Title:      title,
 	})
 	if err != nil {
 		return nil, err
@@ -78,7 +81,7 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 			zap.Any("source_type", sourceType),
 			zap.Int("chunks", chunks),
 		)
-		
+
 		if err := uploadJobRepo.MarkCompleted(ctx, payload.JobID, content, sourceType); err != nil {
 			return err
 		}
@@ -89,11 +92,6 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 
 		logger.Info("file parsed and deleted from r2", zap.Any("user_id", payload.UserID), zap.String("file_path", payload.ObjectKey), zap.Any("source_type", sourceType), zap.Int("content length", len(content)))
 
-		// Store content here:
-		// - save to business_knowledges
-		// - chunk content
-		// - generate embeddings
-		// - mark upload complete
 		return nil
 	}
 }

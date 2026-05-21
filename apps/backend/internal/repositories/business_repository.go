@@ -11,6 +11,7 @@ import (
 type BusinessRepository interface {
 	CreateBusiness(ctx context.Context, businessName string, userID uuid.UUID) (*model.Business, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*model.Business, error)
+	FindByIDAndUserID(ctx context.Context, businessID, userID uuid.UUID) (*model.Business, error)
 }
 
 type businessRepository struct {
@@ -37,6 +38,16 @@ func (r *businessRepository) CreateBusiness(ctx context.Context, businessName st
 func (r *businessRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Business, error) {
 	var business model.Business
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&business).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &business, nil
+}
+
+func (r *businessRepository) FindByIDAndUserID(ctx context.Context, businessID, userID uuid.UUID) (*model.Business, error) {
+	var business model.Business
+	err := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", businessID, userID).First(&business).Error
 	if err != nil {
 		return nil, err
 	}

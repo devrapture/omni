@@ -32,16 +32,18 @@ type FileUploadHandler struct {
 	service       *service.ParserService
 	asynqClient   *asynq.Client
 	uploadJobRepo repositories.UploadJobRepository
+	businessRepo  repositories.BusinessRepository
 	r2            *storage.R2Storage
 	logger        *zap.Logger
 }
 
-func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, asynqClient *asynq.Client, uploadJobRepo repositories.UploadJobRepository, r2 *storage.R2Storage, logger *zap.Logger) *FileUploadHandler {
+func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, asynqClient *asynq.Client, uploadJobRepo repositories.UploadJobRepository, businessRepo repositories.BusinessRepository, r2 *storage.R2Storage, logger *zap.Logger) *FileUploadHandler {
 	return &FileUploadHandler{
 		cfg:           cfg,
 		service:       service,
 		asynqClient:   asynqClient,
 		uploadJobRepo: uploadJobRepo,
+		businessRepo:  businessRepo,
 		r2:            r2,
 		logger:        logger,
 	}
@@ -66,15 +68,17 @@ func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "upload job retrieved", gin.H{
-		"job_id":       job.ID,
-		"status":       job.Status,
-		"source_type":  job.SourceType,
-		"content":      job.Content,
-		"error":        job.Error,
-		"created_at":   job.CreatedAt,
-		"updated_at":   job.UpdatedAt,
-		"is_completed": job.Status == model.UploadJobCompleted,
-		"is_failed":    job.Status == model.UploadJobFailed,
+		"job_id":          job.ID,
+		"status":          job.Status,
+		"source_name":     job.SourceName,
+		"source_type":     job.SourceType,
+		"content_preview": truncateRunes(job.Content, 100),
+		"content_length":  len([]rune(job.Content)),
+		"error":           job.Error,
+		"created_at":      job.CreatedAt,
+		"updated_at":      job.UpdatedAt,
+		"is_completed":    job.Status == model.UploadJobCompleted,
+		"is_failed":       job.Status == model.UploadJobFailed,
 	}, nil)
 }
 
@@ -89,6 +93,12 @@ func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
 	ext := strings.ToLower(filepath.Ext(req.FileName))
 	if !isAllowedUploadExtension(ext) {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file extension is not allowed")
+		return
+	}
+
+	sourceName := filepath.Base(req.FileName)
+	if sourceName == "." || sourceName == string(filepath.Separator) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid file name")
 		return
 	}
 
@@ -107,6 +117,7 @@ func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
 		Status:     model.UploadJobQueued,
 		UserID:     userID.(uuid.UUID),
 		ObjectKey:  objectKey,
+		SourceName: sourceName,
 		SourceType: ext,
 	}
 
@@ -119,6 +130,7 @@ func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusAccepted, "upload url created", gin.H{
 		"job_id":     job.ID,
 		"object_key": objectKey,
+		"file_name":  sourceName,
 		"upload_url": uploadURL,
 	}, nil)
 }
@@ -135,6 +147,21 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 
 	if err := c.ShouldBind(&req); err != nil {
 		utils.ValidationError(c, err)
+		return
+	}
+
+	businessID, err := uuid.Parse(req.BusinessId)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid business_id")
+		return
+	}
+
+	if _, err := h.businessRepo.FindByIDAndUserID(c.Request.Context(), businessID, userID.(uuid.UUID)); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "BUSINESS_NOT_FOUND", "business not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get business")
 		return
 	}
 
@@ -162,7 +189,7 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 		return
 	}
 
-	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), job.ObjectKey)
+	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), businessID, job.ObjectKey, job.SourceName, job.SourceName)
 	if err != nil {
 		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
 			h.logger.Error("failed to release upload job claim after task creation failure", zap.Error(releaseErr))
@@ -200,4 +227,16 @@ func isAllowedUploadExtension(ext string) bool {
 	default:
 		return false
 	}
+}
+
+func truncateRunes(value string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
+
+	runes := []rune(value)
+	if len(runes) <= maxRunes {
+		return value
+	}
+	return string(runes[:maxRunes])
 }

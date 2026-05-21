@@ -33,7 +33,7 @@ func NewEmbeddingClient(ctx context.Context, apiKey string) (EmbeddingClient, er
 	return &embeddingClient{
 		client:         client,
 		embeddingModel: model.DefaultEmbeddingModel,
-		dimension:      int32(768),
+		dimension:      int32(model.DefaultEmbeddingDimension),
 	}, nil
 }
 
