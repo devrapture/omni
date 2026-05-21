@@ -1,4 +1,4 @@
-h1:n7mS5UhBdWuttm7Lco024Xnjl0P46l0AhDHoDOo/Oqg=
+h1:I5Q5jaq/L2iJB+bO/jgvplqSwCBm0eb0P6VEJQGnDX4=
 20260503235500_add_users_table.sql h1:4sqSYo3xyNVcLA9tILsDppLxIU8ESUMpQKzSQueg5F0=
 20260504201500_add_users_settings_and_knowledge_table.sql h1:yIO9Bw6aawDPSXMogC/wK6woLRk6ZQ1IdafDZi9M+SQ=
 20260505094612_update_users_settings_table.sql h1:TJNSXiuLDa5Cv9PUv6XUhokMxXKlEUOjDEZkBxEbm80=
@@ -10,3 +10,4 @@ h1:n7mS5UhBdWuttm7Lco024Xnjl0P46l0AhDHoDOo/Oqg=
 20260518061504_removed_job_id_upload_job_table.sql h1:k+MwGe6lSBr3h8tAxgI+tz3TWVZLBjTuDNNg4U2hrh4=
 20260518071250_add_content_upload_job_table.sql h1:I06xMpzlwB1Nm4wjSiaXBUcpcKKN7pFgnFlPDKYZFqw=
 20260518195403_add_pgvector_extension.sql h1:E1cXv57u3Aulb5i3KU+QMlQ5OzKuPa6DrdKwM+HG79U=
+20260519021531_add_business_table_and_update_knowledge_relationship.sql h1:LkDXSNqyOExV6KdSPG3VPGN5agfA6fqbbAbmFN21imY=

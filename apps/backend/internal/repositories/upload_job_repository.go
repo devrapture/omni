@@ -15,7 +15,7 @@ type UploadJobRepository interface {
 	UpdateJob(ctx context.Context, id uuid.UUID, status model.UploadJobStatus, errorMessage string) error
 	ClaimQueuedJob(ctx context.Context, id uuid.UUID) error
 	ReleaseProcessingJob(ctx context.Context, id uuid.UUID) error
-	MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType string) error
+	MarkCompleted(ctx context.Context, id uuid.UUID, content string, sourceType model.SourceType) error
 }
 
 type uploadJobRepository struct {
@@ -102,7 +102,7 @@ func (r *uploadJobRepository) ReleaseProcessingJob(ctx context.Context, id uuid.
 	return nil
 }
 
-func (r *uploadJobRepository) MarkCompleted(ctx context.Context, id uuid.UUID, content, sourceType string) error {
+func (r *uploadJobRepository) MarkCompleted(ctx context.Context, id uuid.UUID, content string, sourceType model.SourceType) error {
 	tx := r.db.WithContext(ctx).Model(&model.UploadJob{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":      model.UploadJobCompleted,
 		"content":     content,

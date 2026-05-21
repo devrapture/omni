@@ -5,16 +5,23 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/devrapture/omni/internal/model"
 	"google.golang.org/genai"
 )
 
-type EmbeddingClient struct {
+type EmbeddingClient interface {
+	EmbedDocument(ctx context.Context, text string) ([]float32, error)
+	EmbedQuestion(ctx context.Context, text string) ([]float32, error)
+	EmbedBatch(ctx context.Context, texts []string) ([][]float32, error)
+}
+
+type embeddingClient struct {
 	client         *genai.Client
 	embeddingModel string
 	dimension      int32
 }
 
-func NewEmbeddingClient(ctx context.Context, apiKey string) (*EmbeddingClient, error) {
+func NewEmbeddingClient(ctx context.Context, apiKey string) (EmbeddingClient, error) {
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  apiKey,
 		Backend: genai.BackendGeminiAPI,
@@ -23,15 +30,15 @@ func NewEmbeddingClient(ctx context.Context, apiKey string) (*EmbeddingClient, e
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	return &EmbeddingClient{
+	return &embeddingClient{
 		client:         client,
-		embeddingModel: "gemini-embedding-001",
+		embeddingModel: model.DefaultEmbeddingModel,
 		dimension:      int32(768),
 	}, nil
 }
 
 // Use this when indexing your business content.
-func (c *EmbeddingClient) EmbedDocument(ctx context.Context, text string) ([]float32, error) {
+func (c *embeddingClient) EmbedDocument(ctx context.Context, text string) ([]float32, error) {
 	result, err := c.client.Models.EmbedContent(ctx, c.embeddingModel, genai.Text(text), &genai.EmbedContentConfig{
 		TaskType:             "RETRIEVAL_DOCUMENT",
 		OutputDimensionality: &c.dimension,
@@ -49,7 +56,7 @@ func (c *EmbeddingClient) EmbedDocument(ctx context.Context, text string) ([]flo
 
 // EmbedQuery embeds a user question for search.
 // Use this when a user asks a question (slightly different task type from document embedding).
-func (c *EmbeddingClient) EmbedQuestion(ctx context.Context, text string) ([]float32, error) {
+func (c *embeddingClient) EmbedQuestion(ctx context.Context, text string) ([]float32, error) {
 	result, err := c.client.Models.EmbedContent(ctx, c.embeddingModel, genai.Text(text), &genai.EmbedContentConfig{
 		TaskType:             "RETRIEVAL_QUERY",
 		OutputDimensionality: &c.dimension,
@@ -68,7 +75,7 @@ func (c *EmbeddingClient) EmbedQuestion(ctx context.Context, text string) ([]flo
 
 // EmbedBatch embeds multiple texts at once.
 // Returns a slice of embeddings, one per input text.
-func (c *EmbeddingClient) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+func (c *embeddingClient) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
 	contents := make([]*genai.Content, len(texts))
 	for i, text := range texts {
 		contents[i] = genai.NewContentFromText(text, genai.RoleUser)
@@ -91,7 +98,7 @@ func (c *EmbeddingClient) EmbedBatch(ctx context.Context, texts []string) ([][]f
 }
 
 // normalize L2-normalizes the embedding vector.
-// Required for gemini-embedding-001 when using dimensions < 3072.
+// Required when using dimensions below the embedding model's native size.
 func normalize(v []float32) []float32 {
 	var sum float64
 	for _, x := range v {

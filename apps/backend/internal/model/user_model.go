@@ -14,8 +14,11 @@ type User struct {
 	AvatarURL         string              `json:"avatar_url" gorm:"type:text;not null" example:"https://example.com/avatar.png" description:"User's avatar URL"`
 	Provider          string              `json:"provider" gorm:"type:text;not null" example:"google" description:"User's provider"`
 	ProviderID        string              `json:"provider_id" gorm:"type:text;not null" example:"1234567890" description:"User's provider ID"`
+	
 	UserSetting       *UserSetting        `json:"user_setting" gorm:"omitempty"`
-	BusinessKnowledge []BusinessKnowledge `json:"business_knowledge,omitempty" gorm:"foreignKey:UserID"`
+	
+	Business          []Business          `json:"business,omitempty" gorm:"foreignKey:UserID"`
+	
 	CreatedAt         time.Time           `json:"created_at" example:"2021-01-01T00:00:00Z"`
 	UpdatedAt         time.Time           `json:"updated_at" example:"2021-01-01T00:00:00Z"`
 	DeletedAt         gorm.DeletedAt      `json:"-" gorm:"index" example:"2021-01-01T00:00:00Z"`

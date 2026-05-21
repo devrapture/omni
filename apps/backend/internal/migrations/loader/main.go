@@ -15,6 +15,7 @@ func main() {
 	stmts, err := gormschema.New("postgres").Load(
 		// list all your model structs here
 		&model.User{},
+		&model.Business{},
 		&model.BusinessKnowledge{},
 		&model.UserSetting{},
 		&model.UploadJob{},

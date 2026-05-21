@@ -16,11 +16,11 @@ type KnowledgeRepository interface {
 	// Use this when ingesting a file or crawled page.
 	CreateChunks(ctx context.Context, chunks []model.BusinessKnowledge) error
 
-	// GetByUserID returns all chunks for a user (for listing).
-	GetByUserID(ctx context.Context, userID uuid.UUID) ([]model.BusinessKnowledge, error)
+	// FindByBusinessID returns all chunks for a user (for listing).
+	FindByBusinessID(ctx context.Context, businessID uuid.UUID) ([]model.BusinessKnowledge, error)
 
 	// DeleteBySource removes all chunks from a specific source (e.g., when re-uploading a file).
-	DeleteBySource(ctx context.Context, id uuid.UUID, sourceName string) error
+	DeleteBySource(ctx context.Context, businessID uuid.UUID, sourceName string) error 
 }
 
 type knowledgeRepository struct {
@@ -57,12 +57,12 @@ func (r *knowledgeRepository) CreateChunks(ctx context.Context, chunks []model.B
 	})
 }
 
-func (r *knowledgeRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]model.BusinessKnowledge, error) {
+func (r *knowledgeRepository) FindByBusinessID(ctx context.Context, businessID uuid.UUID) ([]model.BusinessKnowledge, error) {
 	var entries []model.BusinessKnowledge
-	err := r.db.WithContext(ctx).Where("user_id = ? AND is_active = true", userID).Order("source_name ASC, ChunkIndex ASC").Find(&entries).Error
+	err := r.db.WithContext(ctx).Where("business_id = ? AND is_active = true", businessID).Order("source_name ASC, ChunkIndex ASC").Find(&entries).Error
 	return entries, err
 }
 
-func (r *knowledgeRepository) DeleteBySource(ctx context.Context, id uuid.UUID, sourceName string) error {
-	return r.db.WithContext(ctx).Where("id = ? AND source_name = ?", id, sourceName).Delete(&model.BusinessKnowledge{}).Error
+func (r *knowledgeRepository) DeleteBySource(ctx context.Context, businessID uuid.UUID, sourceName string) error {
+	return r.db.WithContext(ctx).Where("business_id = ? AND source_name = ?", businessID, sourceName).Delete(&model.BusinessKnowledge{}).Error
 }

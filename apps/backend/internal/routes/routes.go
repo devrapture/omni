@@ -6,6 +6,7 @@ import (
 	"github.com/devrapture/omni/internal/middleware"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -13,13 +14,15 @@ type HandlerDependencies struct {
 	AuthHandler         *handlers.AuthHandler
 	UserSettingsHandler *handlers.SettingsHandler
 	FileUploadHandler   *handlers.FileUploadHandler
+	BusinessHandler     *handlers.BusinessHandler
 }
 
-func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config) *gin.Engine {
+func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config, logger *zap.Logger) *gin.Engine {
 	utils.RegisterValidators()
 
-	r := gin.Default()
-
+	r := gin.New()
+	r.Use(middleware.RequestLogger(logger))
+	r.Use(gin.Recovery())
 	v1 := r.Group("/api/v1")
 
 	{
@@ -32,9 +35,11 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config) *gin.Engin
 			GET("/google/callback", deps.AuthHandler.GoogleCallback).
 			POST("/google/login", deps.AuthHandler.LoginWithGoogle) // when frontend is using Authjs library
 
+		protected := v1.Group("")
+		protected.Use(middleware.AuthMiddleware(cfg))
+
 		// user settings
-		settings := v1.Group("/settings")
-		settings.Use(middleware.AuthMiddleware(cfg))
+		settings := protected.Group("/settings")
 
 		settings.
 			GET("", deps.UserSettingsHandler.GetUserSettings).
@@ -42,14 +47,20 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config) *gin.Engin
 			DELETE("", deps.UserSettingsHandler.DeleteUserSettings)
 
 		// file upload
-		fileUpload := v1.Group("/file-upload")
-		fileUpload.Use(middleware.AuthMiddleware(cfg))
+		fileUpload := protected.Group("/file-upload")
 
 		fileUpload.
 			// POST("", deps.FileUploadHandler.HandleFileUpload).
 			POST("/presign", deps.FileUploadHandler.CreatePresignedUploadURL).
 			POST("/jobs/:jobID/complete", deps.FileUploadHandler.CompleteUpload).
 			GET("/jobs/:jobID", deps.FileUploadHandler.GetUploadJob)
+
+		// business
+		business := protected.Group("/business")
+
+		business.
+			POST("", deps.BusinessHandler.CreateBusiness)
+
 	}
 
 	return r
