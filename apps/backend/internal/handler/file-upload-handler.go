@@ -95,9 +95,8 @@ func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file extension is not allowed")
 		return
 	}
-
-	sourceName := filepath.Base(req.FileName)
-	if sourceName == "." || sourceName == string(filepath.Separator) {
+	sourceName := strings.TrimSpace(req.FileName)
+	if sourceName == "" || sourceName == "." || strings.ContainsAny(sourceName, `/\`) {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid file name")
 		return
 	}

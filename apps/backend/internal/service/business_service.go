@@ -77,6 +77,10 @@ func (s *businessService) IngestText(ctx context.Context, businessID uuid.UUID, 
 		return 0, fmt.Errorf("embedding failed: %w", err)
 	}
 
+	if len(embeddings) != len(chunks) {
+		return 0, fmt.Errorf("embedding count mismatch: got %d embeddings for %d chunks", len(embeddings), len(chunks))
+	}
+
 	records := make([]model.BusinessKnowledge, len(chunks))
 	for i, chunk := range chunks {
 		records[i] = model.BusinessKnowledge{

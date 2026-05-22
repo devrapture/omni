@@ -59,7 +59,7 @@ func (r *knowledgeRepository) CreateChunks(ctx context.Context, chunks []model.B
 
 func (r *knowledgeRepository) FindByBusinessID(ctx context.Context, businessID uuid.UUID) ([]model.BusinessKnowledge, error) {
 	var entries []model.BusinessKnowledge
-	err := r.db.WithContext(ctx).Where("business_id = ? AND is_active = true", businessID).Order("source_name ASC, ChunkIndex ASC").Find(&entries).Error
+	err := r.db.WithContext(ctx).Where("business_id = ? AND is_active = true", businessID).Order("source_name ASC, chunk_index ASC").Find(&entries).Error
 	return entries, err
 }
 

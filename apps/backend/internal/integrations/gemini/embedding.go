@@ -89,7 +89,11 @@ func (c *embeddingClient) EmbedBatch(ctx context.Context, texts []string) ([][]f
 		return nil, fmt.Errorf("failed to embed batch: %w", err)
 	}
 
-	embeddings := make([][]float32, len(result.Embeddings))
+	if len(result.Embeddings) != len(texts) {
+		return nil, fmt.Errorf("embedding count mismatch: got %d for %d texts", len(result.Embeddings), len(texts))
+	}
+
+	embeddings := make([][]float32, len(texts))
 	for i, emb := range result.Embeddings {
 		embeddings[i] = normalize(emb.Values)
 	}
