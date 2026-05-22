@@ -6,6 +6,7 @@ import (
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/database"
+	"github.com/devrapture/omni/internal/integrations/gemini"
 	"github.com/devrapture/omni/internal/queue"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/service"
@@ -37,6 +38,16 @@ func main() {
 		log.Fatalf("Failed to initialize R2 storage: %v", err)
 	}
 
+	businessRepo := repositories.NewBusinessRepository(db)
+	knowledgeRepo := repositories.NewKnowledgeRepository(db)
+
+	embeddingSvc, err := gemini.NewEmbeddingClient(context.Background(), cfg.GeminiAPIKey)
+	if err != nil {
+		log.Fatalf("Failed to initialize Gemini embedding client: %v", err)
+	}
+
+	businessSvc := service.NewBusinessService(businessRepo, knowledgeRepo, embeddingSvc, logger)
+
 	uploadJobRepo := repositories.NewUploadJobRepository(db)
 	parserSvc := service.NewParserService()
 
@@ -52,7 +63,7 @@ func main() {
 	)
 
 	mux := asynq.NewServeMux()
-	mux.HandleFunc(tasks.TypeFileParse, tasks.HandleFileParseTask(uploadJobRepo, parserSvc, r2Storage, logger))
+	mux.HandleFunc(tasks.TypeFileParse, tasks.HandleFileParseTask(uploadJobRepo, parserSvc, businessSvc, r2Storage, logger))
 
 	logger.Info("Starting file parser worker")
 

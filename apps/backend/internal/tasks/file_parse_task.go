@@ -22,16 +22,22 @@ import (
 const TypeFileParse = "file:parse"
 
 type FileParsePayload struct {
-	JobID     uuid.UUID `json:"job_id"`
-	UserID    uuid.UUID `json:"user_id"`
-	ObjectKey string    `json:"object_key"`
+	JobID      uuid.UUID `json:"job_id"`
+	UserID     uuid.UUID `json:"user_id"`
+	BusinessID uuid.UUID `json:"business_id"`
+	ObjectKey  string    `json:"object_key"`
+	SourceName string    `json:"source_name"`
+	Title      string    `json:"title"`
 }
 
-func NewFileParseTask(jobID, userID uuid.UUID, objectKey string) (*asynq.Task, error) {
+func NewFileParseTask(jobID, userID, businessID uuid.UUID, objectKey, sourceName, title string) (*asynq.Task, error) {
 	payload, err := json.Marshal(FileParsePayload{
-		JobID:     jobID,
-		UserID:    userID,
-		ObjectKey: objectKey,
+		JobID:      jobID,
+		UserID:     userID,
+		BusinessID: businessID,
+		ObjectKey:  objectKey,
+		SourceName: sourceName,
+		Title:      title,
 	})
 	if err != nil {
 		return nil, err
@@ -40,7 +46,7 @@ func NewFileParseTask(jobID, userID uuid.UUID, objectKey string) (*asynq.Task, e
 	return asynq.NewTask(TypeFileParse, payload), nil
 }
 
-func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser *service.ParserService, r2 *storage.R2Storage, logger *zap.Logger) asynq.HandlerFunc {
+func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser *service.ParserService, businessSvc service.BusinessService, r2 *storage.R2Storage, logger *zap.Logger) asynq.HandlerFunc {
 	return func(ctx context.Context, task *asynq.Task) error {
 		var payload FileParsePayload
 		if err := json.Unmarshal(task.Payload(), &payload); err != nil {
@@ -63,6 +69,19 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 			return handleParseFailure(ctx, r2, payload.ObjectKey, err, payload.JobID, uploadJobRepo)
 		}
 
+		chunks, err := businessSvc.IngestText(ctx, payload.BusinessID, payload.Title, content, payload.SourceName, sourceType)
+
+		if err != nil {
+			return handleParseFailure(ctx, r2, payload.ObjectKey, err, payload.JobID, uploadJobRepo)
+		}
+
+		logger.Info("file ingested into business knowledge",
+			zap.String("business_id", payload.BusinessID.String()),
+			zap.String("source_name", payload.SourceName),
+			zap.Any("source_type", sourceType),
+			zap.Int("chunks", chunks),
+		)
+
 		if err := uploadJobRepo.MarkCompleted(ctx, payload.JobID, content, sourceType); err != nil {
 			return err
 		}
@@ -71,13 +90,8 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 			logger.Warn("failed to delete parsed file from r2", zap.String("object_key", payload.ObjectKey), zap.Error(err))
 		}
 
-		logger.Info("file parsed and deleted from r2", zap.Any("user_id", payload.UserID), zap.String("file_path", payload.ObjectKey), zap.String("source_type", sourceType), zap.Int("content length", len(content)))
+		logger.Info("file parsed and deleted from r2", zap.Any("user_id", payload.UserID), zap.String("file_path", payload.ObjectKey), zap.Any("source_type", sourceType), zap.Int("content length", len(content)))
 
-		// Store content here:
-		// - save to business_knowledges
-		// - chunk content
-		// - generate embeddings
-		// - mark upload complete
 		return nil
 	}
 }

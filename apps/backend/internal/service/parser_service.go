@@ -11,6 +11,7 @@ import (
 	// "github.com/ledongthuc/pdf"
 
 	apperrors "github.com/devrapture/omni/internal/errors"
+	"github.com/devrapture/omni/internal/model"
 	"github.com/fumiama/go-docx"
 	"github.com/gen2brain/go-fitz"
 )
@@ -21,7 +22,7 @@ func NewParserService() *ParserService {
 	return &ParserService{}
 }
 
-func (s *ParserService) Parse(path string) (text, sourceType string, err error) {
+func (s *ParserService) Parse(path string) (text string, sourceType model.SourceType, err error) {
 	ext := strings.ToLower(filepath.Ext(path))
 
 	src, err := os.Open(path)
