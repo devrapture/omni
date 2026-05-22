@@ -26,7 +26,6 @@ const (
 
 type BusinessKnowledge struct {
 	ID         uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	Title      string     `json:"title" gorm:"type:text;not null"`
 	Content    string     `json:"content" gorm:"type:text;not null"`
 	SourceName string     `json:"source_name" gorm:"type:text;not null"` // filename or website url
 	SourceType SourceType `json:"source_type" gorm:"type:text;not null"` // where this chunk came from? (text,pdf,docx,csv,xlsx,web)

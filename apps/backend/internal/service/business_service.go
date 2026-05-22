@@ -85,7 +85,6 @@ func (s *businessService) IngestText(ctx context.Context, businessID uuid.UUID, 
 	for i, chunk := range chunks {
 		records[i] = model.BusinessKnowledge{
 			BusinessID:     businessID,
-			Title:          title,
 			Content:        chunk,
 			SourceType:     sourceType,
 			SourceName:     sourceName,
@@ -96,7 +95,7 @@ func (s *businessService) IngestText(ctx context.Context, businessID uuid.UUID, 
 		}
 	}
 
-	if err := s.knowledgeRepository.CreateChunks(ctx, records); err != nil {
+	if err := s.knowledgeRepository.ReplaceChunksBySource(ctx, businessID, sourceName, records); err != nil {
 		return 0, fmt.Errorf("failed to store knowledge chunks: %w", err)
 	}
 	return len(records), nil

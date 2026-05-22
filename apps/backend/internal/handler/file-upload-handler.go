@@ -149,13 +149,7 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 		return
 	}
 
-	businessID, err := uuid.Parse(req.BusinessId)
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid business_id")
-		return
-	}
-
-	if _, err := h.businessRepo.FindByIDAndUserID(c.Request.Context(), businessID, userID.(uuid.UUID)); err != nil {
+	if _, err := h.businessRepo.FindByIDAndUserID(c.Request.Context(), req.BusinessId, userID.(uuid.UUID)); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorResponse(c, http.StatusNotFound, "BUSINESS_NOT_FOUND", "business not found")
 			return
@@ -188,7 +182,7 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 		return
 	}
 
-	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), businessID, job.ObjectKey, job.SourceName, job.SourceName)
+	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), req.BusinessId, job.ObjectKey, job.SourceName, job.SourceName)
 	if err != nil {
 		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
 			h.logger.Error("failed to release upload job claim after task creation failure", zap.Error(releaseErr))

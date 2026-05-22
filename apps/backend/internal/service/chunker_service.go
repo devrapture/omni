@@ -45,6 +45,7 @@ func ChunkText(text string, cfg ChunkConfig) []string {
 
 	// Split into sentences
 	sentences := splitIntoSentences(text)
+	sentences = splitLongSentences(sentences, cfg.ChunkSize)
 
 	if len(sentences) == 0 {
 		return nil
@@ -63,8 +64,12 @@ func ChunkText(text string, cfg ChunkConfig) []string {
 			chunk := strings.Join(currentChunk, " ")
 			chunks = append(chunks, strings.TrimSpace(chunk))
 
-			// Create overlap: keep the last N words
-			currentChunk = getOverlapSentences(currentChunk, cfg.Overlap)
+			// Create overlap only when it fits with the next sentence.
+			overlapWords := cfg.Overlap
+			if remaining := cfg.ChunkSize - wordCount; remaining < overlapWords {
+				overlapWords = remaining
+			}
+			currentChunk = getOverlapSentences(currentChunk, overlapWords)
 			currentWordCount = countWords(strings.Join(currentChunk, " "))
 		}
 
@@ -90,6 +95,39 @@ func ChunkText(text string, cfg ChunkConfig) []string {
 	}
 
 	return filtered
+}
+
+func splitLongSentences(sentences []string, maxWords int) []string {
+	if maxWords <= 0 {
+		return sentences
+	}
+
+	var result []string
+	for _, sentence := range sentences {
+		if countWords(sentence) <= maxWords {
+			result = append(result, sentence)
+			continue
+		}
+		result = append(result, splitIntoWordChunks(sentence, maxWords)...)
+	}
+	return result
+}
+
+func splitIntoWordChunks(text string, maxWords int) []string {
+	words := strings.Fields(text)
+	if maxWords <= 0 || len(words) <= maxWords {
+		return []string{strings.TrimSpace(text)}
+	}
+
+	chunks := make([]string, 0, (len(words)+maxWords-1)/maxWords)
+	for i := 0; i < len(words); i += maxWords {
+		end := i + maxWords
+		if end > len(words) {
+			end = len(words)
+		}
+		chunks = append(chunks, strings.Join(words[i:end], " "))
+	}
+	return chunks
 }
 
 // splitIntoSentences splits text on sentence-ending punctuation.
@@ -126,7 +164,7 @@ func splitIntoSentences(text string) []string {
 
 // getOverlapSentences returns the last sentences that together have at most `targetWords` words.
 func getOverlapSentences(sentences []string, targetWords int) []string {
-	if len(sentences) == 0 {
+	if len(sentences) == 0 || targetWords <= 0 {
 		return nil
 	}
 
@@ -136,7 +174,7 @@ func getOverlapSentences(sentences []string, targetWords int) []string {
 	// Walk backwards through sentences
 	for i := len(sentences) - 1; i >= 0; i-- {
 		wc := countWords(sentences[i])
-		if wordCount+wc > targetWords && len(overlap) > 0 {
+		if wordCount+wc > targetWords {
 			break
 		}
 		overlap = append([]string{sentences[i]}, overlap...)

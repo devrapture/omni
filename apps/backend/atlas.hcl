@@ -27,4 +27,10 @@ env "local" {
   migration {
     dir = "file://internal/migrations"
   }
+
+  lint {
+    destructive {
+      error = false
+    }
+  }
 }
