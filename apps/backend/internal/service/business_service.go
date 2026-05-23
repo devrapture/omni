@@ -20,7 +20,7 @@ type EmbeddingService interface {
 type BusinessService interface {
 	CreateBusiness(ctx context.Context, businessName string, userID uuid.UUID) (*model.Business, error)
 	GetBusiness(ctx context.Context, id uuid.UUID) (*model.Business, error)
-	GetKnowledge(ctx context.Context, businessID uuid.UUID) ([]model.BusinessKnowledge, error)
+	GetKnowledgeForUser(ctx context.Context, businessID, userID uuid.UUID) ([]model.BusinessKnowledge, error)
 	DeleteBySource(ctx context.Context, businessID uuid.UUID, sourceName string) error
 	IngestText(ctx context.Context, businessID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error)
 }
@@ -54,7 +54,10 @@ func (s *businessService) GetBusiness(ctx context.Context, id uuid.UUID) (*model
 	return s.businessRepository.FindByID(ctx, id)
 }
 
-func (s *businessService) GetKnowledge(ctx context.Context, businessID uuid.UUID) ([]model.BusinessKnowledge, error) {
+func (s *businessService) GetKnowledgeForUser(ctx context.Context, businessID, userID uuid.UUID) ([]model.BusinessKnowledge, error) {
+	if _, err := s.businessRepository.FindByIDAndUserID(ctx, businessID, userID); err != nil {
+		return nil, err
+	}
 	return s.knowledgeRepository.FindByBusinessID(ctx, businessID)
 }
 

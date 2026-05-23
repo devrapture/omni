@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type BusinessHandler struct {
@@ -41,14 +43,18 @@ func (h *BusinessHandler) CreateBusiness(c *gin.Context) {
 }
 
 func (h *BusinessHandler) ListSources(c *gin.Context) {
-	// userID, _ := c.Get("userID")
+	userID, _ := c.Get("userID")
 	businessID, err := uuid.Parse(c.Param("businessID"))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid business_id")
 		return
 	}
-	entries, err := h.service.GetKnowledge(c.Request.Context(), businessID)
+	entries, err := h.service.GetKnowledgeForUser(c.Request.Context(), businessID, userID.(uuid.UUID))
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "BUSINESS_NOT_FOUND", "business not found")
+			return
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get knowledge")
 		return
 	}
