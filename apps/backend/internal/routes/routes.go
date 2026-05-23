@@ -60,7 +60,8 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config, logger *za
 		business.
 			POST("", deps.BusinessHandler.CreateBusiness).
 			GET("/knowledge/:businessID", deps.BusinessHandler.ListSources).
-			DELETE("/knowledge/:businessID", deps.BusinessHandler.DeleteSource)
+			DELETE("/knowledge/:businessID", deps.BusinessHandler.DeleteSource).
+			POST("/knowledge/:businessID", deps.BusinessHandler.AddText)
 
 	}
 

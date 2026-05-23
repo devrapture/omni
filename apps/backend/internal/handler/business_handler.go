@@ -108,3 +108,26 @@ func (h *BusinessHandler) DeleteSource(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Successful deleted source", nil, nil)
 }
+
+func (h *BusinessHandler) AddText(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	businessID, err := uuid.Parse(c.Param("businessID"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid business_id")
+		return
+	}
+	var req dto.AddTextDTO
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	_, err = h.service.AddText(c.Request.Context(), businessID, userID.(uuid.UUID), req.Title, req.Content)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to add text")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Successful added text", nil, nil)
+}

@@ -21,6 +21,7 @@ type BusinessService interface {
 	CreateBusiness(ctx context.Context, businessName string, userID uuid.UUID) (*model.Business, error)
 	GetBusiness(ctx context.Context, id uuid.UUID) (*model.Business, error)
 	GetKnowledgeForUser(ctx context.Context, businessID, userID uuid.UUID) ([]model.BusinessKnowledge, error)
+	AddText(ctx context.Context, businessID, userID uuid.UUID, title, content string) (int, error)
 	DeleteBySource(ctx context.Context, businessID, userID uuid.UUID, sourceName string) error
 	IngestText(ctx context.Context, businessID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error)
 }
@@ -66,6 +67,59 @@ func (s *businessService) DeleteBySource(ctx context.Context, businessID, userID
 		return err
 	}
 	return s.knowledgeRepository.DeleteUserSource(ctx, businessID, sourceName)
+}
+
+func (s *businessService) AddText(ctx context.Context, businessID, userID uuid.UUID, title, content string) (int, error) {
+	_, err := s.businessRepository.FindByIDAndUserID(ctx, businessID, userID)
+	if err != nil {
+		return 0, err
+	}
+	const maxContentBytes = 10_000 // tune to your quota/latency budget
+	if len(content) > maxContentBytes {
+		return 0, fmt.Errorf("content too large: max %d bytes", maxContentBytes)
+	}
+	s.logger.Info("Starting text ingestion", zap.String("businessID", businessID.String()), zap.String("sourceName", title), zap.String("sourceType", string(model.SourceTypeText)))
+	cfg := DefaultChunkConfig()
+	chunks := ChunkText(content, cfg)
+
+	if len(chunks) == 0 {
+		return 0, fmt.Errorf("no content could be extracted from the provided text")
+	}
+
+	s.logger.Info("Text chunked", zap.Int("num_chunks", len(chunks)))
+	embeddings, err := s.batchEmbed(ctx, chunks)
+
+	if err != nil {
+		return 0, fmt.Errorf("embedding failed: %w", err)
+	}
+
+	if len(embeddings) != len(chunks) {
+		return 0, fmt.Errorf("embedding count mismatch: got %d embeddings for %d chunks", len(embeddings), len(chunks))
+	}
+	records := make([]model.BusinessKnowledge, len(chunks))
+	for i, chunk := range chunks {
+		records[i] = model.BusinessKnowledge{
+			BusinessID:     businessID,
+			Content:        chunk,
+			SourceType:     model.SourceTypeText,
+			SourceName:     title,
+			ChunkIndex:     i,
+			IsActive:       true,
+			Embedding:      pgvector.NewVector(embeddings[i]),
+			EmbeddingModel: model.DefaultEmbeddingModel,
+		}
+	}
+
+	if err := s.knowledgeRepository.ReplaceChunksBySource(ctx, businessID, title, records); err != nil {
+		return 0, fmt.Errorf("failed to store knowledge chunks: %w", err)
+	}
+	s.logger.Info("text successfully ingested into business knowledge",
+		zap.String("business_id", businessID.String()),
+		zap.String("source_name", title),
+		zap.Any("source_type", model.SourceTypeText),
+		zap.Int("chunks", len(records)),
+	)
+	return len(records), nil
 }
 
 func (s *businessService) IngestText(ctx context.Context, businessID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error) {
