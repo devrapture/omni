@@ -110,7 +110,7 @@ func (h *BusinessHandler) DeleteSource(c *gin.Context) {
 }
 
 func (h *BusinessHandler) AddText(c *gin.Context) {
-	// userID, _ := c.Get("userID")
+	userID, _ := c.Get("userID")
 	businessID, err := uuid.Parse(c.Param("businessID"))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid business_id")
@@ -123,7 +123,7 @@ func (h *BusinessHandler) AddText(c *gin.Context) {
 		return
 	}
 
-	_, err = h.service.AddText(c.Request.Context(), businessID, req.Title, req.Content)
+	_, err = h.service.AddText(c.Request.Context(), businessID, userID.(uuid.UUID), req.Title, req.Content)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to add text")
 		return
