@@ -56,7 +56,7 @@ func (r *knowledgeRepository) FindByBusinessID(ctx context.Context, businessID u
 }
 
 func (r *knowledgeRepository) DeleteUserSource(ctx context.Context, businessID uuid.UUID, sourceName string) error {
-	return r.db.WithContext(ctx).Where("business_id = ? AND source_name = ?", businessID, sourceName).Delete(&model.BusinessKnowledge{}).Error
+	return r.db.WithContext(ctx).Unscoped().Where("business_id = ? AND source_name = ?", businessID, sourceName).Delete(&model.BusinessKnowledge{}).Error
 }
 
 func createChunksInBatches(tx *gorm.DB, chunks []model.BusinessKnowledge) error {
