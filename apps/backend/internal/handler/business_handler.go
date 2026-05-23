@@ -43,12 +43,23 @@ func (h *BusinessHandler) CreateBusiness(c *gin.Context) {
 func (h *BusinessHandler) ListSources(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	businessID, err := uuid.Parse(c.Param("businessID"))
-	sourceTypeQuery := c.DefaultQuery("source_type", "all")
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid business_id")
 		return
 	}
-	sources, err := h.service.ListSources(c.Request.Context(), businessID, userID.(uuid.UUID), sourceTypeQuery)
+	// sourceTypeQuery := c.DefaultQuery("source_type", "all")
+	var req dto.ListSourcesRequest
+
+	if err := c.ShouldBind(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	if req.SourceType == "" {
+		req.SourceType = "all"
+	}
+
+	sources, err := h.service.ListSources(c.Request.Context(), businessID, userID.(uuid.UUID), req.SourceType)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorResponse(c, http.StatusNotFound, "BUSINESS_NOT_FOUND", "business not found")
