@@ -51,7 +51,11 @@ func (r *knowledgeRepository) ReplaceChunksBySource(ctx context.Context, busines
 
 func (r *knowledgeRepository) FindByBusinessID(ctx context.Context, businessID uuid.UUID, sourceTypes []model.SourceType) ([]model.BusinessKnowledge, error) {
 	var entries []model.BusinessKnowledge
-	err := r.db.WithContext(ctx).Where("business_id = ? AND is_active = true AND source_type IN ?", businessID, sourceTypes).Order("source_name ASC, chunk_index ASC").Find(&entries).Error
+	query := r.db.WithContext(ctx).Where("business_id = ? AND is_active = true", businessID)
+	if len(sourceTypes) > 0 {
+		query = query.Where("source_type IN ?", sourceTypes)
+	}
+	err := query.Order("source_name ASC, chunk_index ASC").Find(&entries).Error
 	return entries, err
 }
 
