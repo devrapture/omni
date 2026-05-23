@@ -59,7 +59,8 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config, logger *za
 		business := protected.Group("/business")
 
 		business.
-			POST("", deps.BusinessHandler.CreateBusiness)
+			POST("", deps.BusinessHandler.CreateBusiness).
+			GET("/knowledge/:businessID", deps.BusinessHandler.ListSources)
 
 	}
 

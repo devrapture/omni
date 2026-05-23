@@ -194,7 +194,6 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 	}
 
 	info, err := h.asynqClient.Enqueue(task, tasks.FileParseOptions()...)
-
 	if err != nil {
 		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
 			h.logger.Error("failed to release upload job claim after enqueue failure", zap.Error(releaseErr))
@@ -210,7 +209,6 @@ func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
 		"queue":  info.Queue,
 		"status": model.UploadJobProcessing,
 	}, nil)
-
 }
 
 func isAllowedUploadExtension(ext string) bool {
