@@ -9,6 +9,10 @@ type DeleteSourceDTO struct {
 }
 
 type AddTextDTO struct {
-	Title string `json:"title" binding:"required"`
+	Title   string `json:"title" binding:"required"`
 	Content string `json:"content" binding:"required"`
+}
+
+type ListSourcesRequest struct {
+	SourceType string `form:"source_type" binding:"omitempty,oneof=all file web text"`
 }
