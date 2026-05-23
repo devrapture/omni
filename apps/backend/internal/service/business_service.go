@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/repositories"
@@ -20,10 +21,18 @@ type EmbeddingService interface {
 type BusinessService interface {
 	CreateBusiness(ctx context.Context, businessName string, userID uuid.UUID) (*model.Business, error)
 	GetBusiness(ctx context.Context, id uuid.UUID) (*model.Business, error)
-	GetKnowledgeForUser(ctx context.Context, businessID, userID uuid.UUID) ([]model.BusinessKnowledge, error)
+	GetKnowledgeForUser(ctx context.Context, businessID, userID uuid.UUID, sourceTypes []model.SourceType) ([]model.BusinessKnowledge, error)
+	ListSources(ctx context.Context, businessID, userID uuid.UUID, sourceTypeQuery string) ([]KnowledgeSourceSummary, error)
 	AddText(ctx context.Context, businessID, userID uuid.UUID, title, content string) (int, error)
 	DeleteBySource(ctx context.Context, businessID, userID uuid.UUID, sourceName string) error
 	IngestText(ctx context.Context, businessID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error)
+}
+
+type KnowledgeSourceSummary struct {
+	SourceName string           `json:"source_name"`
+	SourceType model.SourceType `json:"source_type"`
+	ChunkCount int              `json:"chunk_count"`
+	CreatedAt  time.Time        `json:"created_at"`
 }
 
 type businessService struct {
@@ -55,11 +64,54 @@ func (s *businessService) GetBusiness(ctx context.Context, id uuid.UUID) (*model
 	return s.businessRepository.FindByID(ctx, id)
 }
 
-func (s *businessService) GetKnowledgeForUser(ctx context.Context, businessID, userID uuid.UUID) ([]model.BusinessKnowledge, error) {
+func (s *businessService) GetKnowledgeForUser(ctx context.Context, businessID, userID uuid.UUID, sourceTypes []model.SourceType) ([]model.BusinessKnowledge, error) {
 	if _, err := s.businessRepository.FindByIDAndUserID(ctx, businessID, userID); err != nil {
 		return nil, err
 	}
-	return s.knowledgeRepository.FindByBusinessID(ctx, businessID)
+	return s.knowledgeRepository.FindByBusinessID(ctx, businessID, sourceTypes)
+}
+
+func (s *businessService) ListSources(ctx context.Context, businessID, userID uuid.UUID, sourceTypeQuery string) ([]KnowledgeSourceSummary, error) {
+	var sourceTypes []model.SourceType
+	switch sourceTypeQuery {
+	case "text":
+		sourceTypes = []model.SourceType{model.SourceTypeText}
+	case "file":
+		sourceTypes = []model.SourceType{
+			model.SourceTypePDF,
+			model.SourceTypeDocx,
+			model.SourceTypeCSV,
+			model.SourceTypeXLSX,
+		}
+	case "web":
+		sourceTypes = []model.SourceType{model.SourceTypeWeb}
+	default: // "all" or anything unrecognised
+		sourceTypes = nil
+	}
+	entries, err := s.GetKnowledgeForUser(ctx, businessID, userID, sourceTypes)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceMap := make(map[string]*KnowledgeSourceSummary)
+	for _, e := range entries {
+
+		key := e.SourceName
+		if _, exists := sourceMap[key]; !exists {
+			sourceMap[key] = &KnowledgeSourceSummary{
+				SourceName: e.SourceName,
+				SourceType: e.SourceType,
+				CreatedAt:  e.CreatedAt,
+			}
+		}
+		sourceMap[key].ChunkCount++
+	}
+
+	sources := make([]KnowledgeSourceSummary, 0, len(sourceMap))
+	for _, source := range sourceMap {
+		sources = append(sources, *source)
+	}
+	return sources, nil
 }
 
 func (s *businessService) DeleteBySource(ctx context.Context, businessID, userID uuid.UUID, sourceName string) error {

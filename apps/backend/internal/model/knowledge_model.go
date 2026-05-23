@@ -12,10 +12,10 @@ type SourceType string
 
 const (
 	SourceTypeText SourceType = "text" // manually typed text
-	SourceTypePDF  SourceType = "pdf"
-	SourceTypeDocx SourceType = "docx"
-	SourceTypeCSV  SourceType = "csv"
-	SourceTypeXLSX SourceType = "xlsx"
+	SourceTypePDF  SourceType = ".pdf"
+	SourceTypeDocx SourceType = ".docx"
+	SourceTypeCSV  SourceType = ".csv"
+	SourceTypeXLSX SourceType = ".xlsx"
 	SourceTypeWeb  SourceType = "web"
 )
 
@@ -28,7 +28,7 @@ type BusinessKnowledge struct {
 	ID         uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
 	Content    string     `json:"content" gorm:"type:text;not null"`
 	SourceName string     `json:"source_name" gorm:"type:text;not null"` // filename or website url
-	SourceType SourceType `json:"source_type" gorm:"type:text;not null"` // where this chunk came from? (text,pdf,docx,csv,xlsx,web)
+	SourceType SourceType `json:"source_type" gorm:"type:text;not null"` // where this chunk came from? (text,.pdf,.docx,.csv,.xlsx,web)
 	ChunkIndex int        `json:"chunk_index" gorm:"default:0"`
 	IsActive   bool       `json:"is_active" gorm:"default:true"`
 
