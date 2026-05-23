@@ -45,19 +45,19 @@ func (s *ParserService) Parse(path string) (text string, sourceType model.Source
 		if err != nil {
 			return "", "", err
 		}
-		sourceType = ".csv"
+		sourceType = model.SourceTypeCSV
 	case ".docx":
 		text, err = s.parseDocx(path)
 		if err != nil {
 			return "", "", err
 		}
-		sourceType = ".docx"
+		sourceType = model.SourceTypeDocx
 	case ".pdf":
 		text, err = s.parsePdf(path)
 		if err != nil {
 			return "", "", err
 		}
-		sourceType = ".pdf"
+		sourceType = model.SourceTypePDF
 	default:
 		return "", "", apperrors.ErrNotSupportFile
 	}

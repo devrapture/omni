@@ -17,7 +17,7 @@ type KnowledgeRepository interface {
 	ReplaceChunksBySource(ctx context.Context, businessID uuid.UUID, sourceName string, chunks []model.BusinessKnowledge) error
 
 	// FindByBusinessID returns all chunks for a user (for listing).
-	FindByBusinessID(ctx context.Context, businessID uuid.UUID) ([]model.BusinessKnowledge, error)
+	FindByBusinessID(ctx context.Context, businessID uuid.UUID, sourceTypes []model.SourceType) ([]model.BusinessKnowledge, error)
 
 	// DeleteBySource removes all chunks from a specific source (e.g., when re-uploading a file).
 	DeleteUserSource(ctx context.Context, businessID uuid.UUID, sourceName string) error
@@ -49,9 +49,13 @@ func (r *knowledgeRepository) ReplaceChunksBySource(ctx context.Context, busines
 	})
 }
 
-func (r *knowledgeRepository) FindByBusinessID(ctx context.Context, businessID uuid.UUID) ([]model.BusinessKnowledge, error) {
+func (r *knowledgeRepository) FindByBusinessID(ctx context.Context, businessID uuid.UUID, sourceTypes []model.SourceType) ([]model.BusinessKnowledge, error) {
 	var entries []model.BusinessKnowledge
-	err := r.db.WithContext(ctx).Where("business_id = ? AND is_active = true", businessID).Order("source_name ASC, chunk_index ASC").Find(&entries).Error
+	query := r.db.WithContext(ctx).Where("business_id = ? AND is_active = true", businessID)
+	if len(sourceTypes) > 0 {
+		query = query.Where("source_type IN ?", sourceTypes)
+	}
+	err := query.Order("source_name ASC, chunk_index ASC").Find(&entries).Error
 	return entries, err
 }
 
