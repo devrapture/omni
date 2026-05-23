@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/devrapture/omni/internal/dto"
@@ -11,6 +10,7 @@ import (
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type SettingsHandler struct {
@@ -61,8 +61,12 @@ func (h *SettingsHandler) UpdateUserSettings(c *gin.Context) {
 
 func (h *SettingsHandler) DeleteUserSettings(c *gin.Context) {
 	userID, _ := c.Get("userID")
-	if err := h.service.DeleteUserKey(c.Request.Context(), userID.(uuid.UUID)); err != nil {
-		log.Println("error deleting user settings", err)
+	err := h.service.DeleteUserKey(c.Request.Context(), userID.(uuid.UUID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "SETTINGS_NOT_FOUND", "user settings not found")
+			return
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "USER_SETTINGS_DELETE_FAILED", "failed to delete user settings")
 		return
 	}

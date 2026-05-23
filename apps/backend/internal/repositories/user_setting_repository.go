@@ -55,10 +55,19 @@ func (r *userSettingRepository) Upsert(ctx context.Context, userID uuid.UUID, us
 }
 
 func (r *userSettingRepository) DeleteAPIKey(ctx context.Context, userID uuid.UUID) error {
-	return r.db.WithContext(ctx).Model(&model.UserSetting{}).Where("user_id = ?", userID).Updates(
+	tx := r.db.WithContext(ctx).Model(&model.UserSetting{}).Where("user_id = ?", userID).Updates(
 		map[string]interface{}{
 			"mode":              model.AIKeyModePlatform,
 			"api_key_encrypted": "",
 		},
-	).Error
+	)
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if tx.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
