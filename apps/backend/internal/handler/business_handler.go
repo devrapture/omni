@@ -86,3 +86,25 @@ func (h *BusinessHandler) ListSources(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Successful retrieved sources", sources, nil)
 }
+
+func (h *BusinessHandler) DeleteSource(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	businessID, err := uuid.Parse(c.Param("businessID"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid business_id")
+		return
+	}
+
+	var req dto.DeleteSourceDTO
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	if err := h.service.DeleteBySource(c.Request.Context(), businessID, userID.(uuid.UUID), req.SourceName); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to delete source")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Successful deleted source", nil, nil)
+}

@@ -50,7 +50,6 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config, logger *za
 		fileUpload := protected.Group("/file-upload")
 
 		fileUpload.
-			// POST("", deps.FileUploadHandler.HandleFileUpload).
 			POST("/presign", deps.FileUploadHandler.CreatePresignedUploadURL).
 			POST("/jobs/:jobID/complete", deps.FileUploadHandler.CompleteUpload).
 			GET("/jobs/:jobID", deps.FileUploadHandler.GetUploadJob)
@@ -60,7 +59,8 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config, logger *za
 
 		business.
 			POST("", deps.BusinessHandler.CreateBusiness).
-			GET("/knowledge/:businessID", deps.BusinessHandler.ListSources)
+			GET("/knowledge/:businessID", deps.BusinessHandler.ListSources).
+			DELETE("/knowledge/:businessID", deps.BusinessHandler.DeleteSource)
 
 	}
 
