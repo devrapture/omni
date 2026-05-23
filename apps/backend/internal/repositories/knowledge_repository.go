@@ -20,7 +20,7 @@ type KnowledgeRepository interface {
 	FindByBusinessID(ctx context.Context, businessID uuid.UUID) ([]model.BusinessKnowledge, error)
 
 	// DeleteBySource removes all chunks from a specific source (e.g., when re-uploading a file).
-	DeleteBySource(ctx context.Context, businessID uuid.UUID, sourceName string) error
+	DeleteUserSource(ctx context.Context, businessID uuid.UUID, sourceName string) error
 }
 
 type knowledgeRepository struct {
@@ -34,7 +34,6 @@ func NewKnowledgeRepository(db *gorm.DB) KnowledgeRepository {
 func (r *knowledgeRepository) CreateChunk(ctx context.Context, businessKnowlege *model.BusinessKnowledge) error {
 	return r.db.WithContext(ctx).Create(businessKnowlege).Error
 }
-
 
 func (r *knowledgeRepository) ReplaceChunksBySource(ctx context.Context, businessID uuid.UUID, sourceName string, chunks []model.BusinessKnowledge) error {
 	if len(chunks) == 0 {
@@ -56,7 +55,7 @@ func (r *knowledgeRepository) FindByBusinessID(ctx context.Context, businessID u
 	return entries, err
 }
 
-func (r *knowledgeRepository) DeleteBySource(ctx context.Context, businessID uuid.UUID, sourceName string) error {
+func (r *knowledgeRepository) DeleteUserSource(ctx context.Context, businessID uuid.UUID, sourceName string) error {
 	return r.db.WithContext(ctx).Where("business_id = ? AND source_name = ?", businessID, sourceName).Delete(&model.BusinessKnowledge{}).Error
 }
 

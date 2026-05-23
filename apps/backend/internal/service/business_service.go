@@ -21,7 +21,7 @@ type BusinessService interface {
 	CreateBusiness(ctx context.Context, businessName string, userID uuid.UUID) (*model.Business, error)
 	GetBusiness(ctx context.Context, id uuid.UUID) (*model.Business, error)
 	GetKnowledgeForUser(ctx context.Context, businessID, userID uuid.UUID) ([]model.BusinessKnowledge, error)
-	DeleteBySource(ctx context.Context, businessID uuid.UUID, sourceName string) error
+	DeleteBySource(ctx context.Context, businessID, userID uuid.UUID, sourceName string) error
 	IngestText(ctx context.Context, businessID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error)
 }
 
@@ -61,8 +61,11 @@ func (s *businessService) GetKnowledgeForUser(ctx context.Context, businessID, u
 	return s.knowledgeRepository.FindByBusinessID(ctx, businessID)
 }
 
-func (s *businessService) DeleteBySource(ctx context.Context, businessID uuid.UUID, sourceName string) error {
-	return s.knowledgeRepository.DeleteBySource(ctx, businessID, sourceName)
+func (s *businessService) DeleteBySource(ctx context.Context, businessID, userID uuid.UUID, sourceName string) error {
+	if _, err := s.businessRepository.FindByIDAndUserID(ctx, businessID, userID); err != nil {
+		return err
+	}
+	return s.knowledgeRepository.DeleteUserSource(ctx, businessID, sourceName)
 }
 
 func (s *businessService) IngestText(ctx context.Context, businessID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error) {
