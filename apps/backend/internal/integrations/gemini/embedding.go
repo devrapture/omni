@@ -41,6 +41,19 @@ func NewEmbeddingClient(ctx context.Context, apiKey string) (EmbeddingClient, er
 	}, nil
 }
 
+func ValidateAPIKey(ctx context.Context, apiKey string) error {
+	client, err := NewEmbeddingClient(ctx, apiKey)
+	if err != nil {
+		return err
+	}
+
+	if _, err := client.EmbedQuestion(ctx, "validate api key"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Use this when indexing your business content.
 func (c *embeddingClient) EmbedDocument(ctx context.Context, text string) ([]float32, error) {
 	result, err := c.client.Models.EmbedContent(ctx, c.embeddingModel, genai.Text(text), &genai.EmbedContentConfig{

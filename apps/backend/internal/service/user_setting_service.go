@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/dto"
 	apperrors "github.com/devrapture/omni/internal/errors"
+	"github.com/devrapture/omni/internal/integrations/gemini"
 	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/utils"
@@ -57,6 +59,13 @@ func (s *userSettingService) UpdateUserSettings(ctx context.Context, userID uuid
 		apiKey := strings.TrimSpace(dto.APIKey)
 		if apiKey == "" {
 			return apperrors.ErrEmptyAPIKey
+		}
+
+		validationCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		if err := gemini.ValidateAPIKey(validationCtx, apiKey); err != nil {
+			return err
 		}
 
 		encryptedKey, err := utils.EncryptText(apiKey, s.cfg.EncryptionKey)
