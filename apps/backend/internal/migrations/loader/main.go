@@ -1,0 +1,30 @@
+//go:build atlas
+
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/devrapture/omni/internal/model"
+
+	"ariga.io/atlas-provider-gorm/gormschema"
+)
+
+func main() {
+	stmts, err := gormschema.New("postgres").Load(
+		// list all your model structs here
+		&model.User{},
+		&model.Business{},
+		&model.BusinessKnowledge{},
+		&model.UserSetting{},
+		&model.UploadJob{},
+	// add all model...
+	)
+	if err != nil {
+		io.WriteString(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	io.WriteString(os.Stdout, "CREATE EXTENSION IF NOT EXISTS vector;\n")
+	io.WriteString(os.Stdout, stmts)
+}

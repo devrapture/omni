@@ -1,0 +1,249 @@
+package handler
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	// "os"
+	"path/filepath"
+
+	"github.com/devrapture/omni/internal/config"
+	"github.com/devrapture/omni/internal/dto"
+	apperrors "github.com/devrapture/omni/internal/errors"
+	"github.com/devrapture/omni/internal/model"
+	"github.com/devrapture/omni/internal/repositories"
+	"github.com/devrapture/omni/internal/service"
+	"github.com/devrapture/omni/internal/storage"
+	"github.com/devrapture/omni/internal/tasks"
+
+	// "github.com/devrapture/omni/internal/tasks"
+	"github.com/devrapture/omni/internal/utils"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+)
+
+type FileUploadHandler struct {
+	cfg           *config.Config
+	service       *service.ParserService
+	asynqClient   *asynq.Client
+	uploadJobRepo repositories.UploadJobRepository
+	businessRepo  repositories.BusinessRepository
+	r2            *storage.R2Storage
+	logger        *zap.Logger
+}
+
+func NewFileUploadHandler(cfg *config.Config, service *service.ParserService, asynqClient *asynq.Client, uploadJobRepo repositories.UploadJobRepository, businessRepo repositories.BusinessRepository, r2 *storage.R2Storage, logger *zap.Logger) *FileUploadHandler {
+	return &FileUploadHandler{
+		cfg:           cfg,
+		service:       service,
+		asynqClient:   asynqClient,
+		uploadJobRepo: uploadJobRepo,
+		businessRepo:  businessRepo,
+		r2:            r2,
+		logger:        logger,
+	}
+}
+
+func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	jobID, err := uuid.Parse(c.Param("jobID"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid job_id")
+		return
+	}
+
+	job, err := h.uploadJobRepo.FindByIDandUserID(c.Request.Context(), userID.(uuid.UUID), jobID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "UPLOAD_JOB_NOT_FOUND", "upload job not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get upload job")
+		return
+	}
+
+	errorCode, errorMessage := formatUploadJobError(job.Error)
+
+	utils.SuccessResponse(c, http.StatusOK, "upload job retrieved", gin.H{
+		"job_id":          job.ID,
+		"status":          job.Status,
+		"source_name":     job.SourceName,
+		"source_type":     job.SourceType,
+		"content_preview": truncateRunes(job.Content, 100),
+		"content_length":  len([]rune(job.Content)),
+		"error":           errorMessage,
+		"error_code":      errorCode,
+		"created_at":      job.CreatedAt,
+		"updated_at":      job.UpdatedAt,
+		"is_completed":    job.Status == model.UploadJobCompleted,
+		"is_failed":       job.Status == model.UploadJobFailed,
+	}, nil)
+}
+
+func (h *FileUploadHandler) CreatePresignedUploadURL(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	var req dto.PresignUploadRequest
+	if err := c.ShouldBind(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(req.FileName))
+	if !isAllowedUploadExtension(ext) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "file extension is not allowed")
+		return
+	}
+	sourceName := strings.TrimSpace(req.FileName)
+	if sourceName == "" || sourceName == "." || strings.ContainsAny(sourceName, `/\`) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid file name")
+		return
+	}
+
+	jobID := uuid.New()
+	objectKey := fmt.Sprintf("uploads/%s/%s%s", userID.(uuid.UUID).String(), jobID.String(), ext)
+
+	uploadURL, err := h.r2.PresignPutObject(c.Request.Context(), objectKey, time.Duration(h.cfg.R2_PRESIGN_TTL_SECONDS)*time.Second)
+	if err != nil {
+		h.logger.Error("failed to presign upload URL", zap.Error(err))
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to presign upload URL")
+		return
+	}
+
+	job := &model.UploadJob{
+		ID:         jobID,
+		Status:     model.UploadJobQueued,
+		UserID:     userID.(uuid.UUID),
+		ObjectKey:  objectKey,
+		SourceName: sourceName,
+		SourceType: ext,
+	}
+
+	if err := h.uploadJobRepo.Create(c.Request.Context(), job); err != nil {
+		h.logger.Error("failed to create upload job", zap.Error(err))
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create upload job")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusAccepted, "upload url created", gin.H{
+		"job_id":     job.ID,
+		"object_key": objectKey,
+		"file_name":  sourceName,
+		"upload_url": uploadURL,
+	}, nil)
+}
+
+func (h *FileUploadHandler) CompleteUpload(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	jobID, err := uuid.Parse(c.Param("jobID"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid job_id")
+		return
+	}
+
+	var req dto.CompleteUploadRequest
+
+	if err := c.ShouldBind(&req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	if _, err := h.businessRepo.FindByIDAndUserID(c.Request.Context(), req.BusinessId, userID.(uuid.UUID)); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "BUSINESS_NOT_FOUND", "business not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get business")
+		return
+	}
+
+	job, err := h.uploadJobRepo.FindByIDandUserID(c.Request.Context(), userID.(uuid.UUID), jobID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusNotFound, "UPLOAD_JOB_NOT_FOUND", "upload job not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to get upload job")
+		return
+	}
+
+	if job.ObjectKey != req.ObjectKey {
+		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "object key does not match upload job")
+		return
+	}
+
+	if err := h.uploadJobRepo.ClaimQueuedJob(c.Request.Context(), job.ID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.ErrorResponse(c, http.StatusConflict, "UPLOAD_JOB_ALREADY_PROCESSING", "upload job has already been queued for parsing")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to update upload job")
+		return
+	}
+
+	task, err := tasks.NewFileParseTask(job.ID, userID.(uuid.UUID), req.BusinessId, job.ObjectKey, job.SourceName, job.SourceName)
+	if err != nil {
+		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
+			h.logger.Error("failed to release upload job claim after task creation failure", zap.Error(releaseErr))
+			utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to release upload job claim")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to create file parse task")
+		return
+	}
+
+	info, err := h.asynqClient.Enqueue(task, tasks.FileParseOptions()...)
+	if err != nil {
+		if releaseErr := h.uploadJobRepo.ReleaseProcessingJob(c.Request.Context(), job.ID); releaseErr != nil {
+			h.logger.Error("failed to release upload job claim after enqueue failure", zap.Error(releaseErr))
+			utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to release upload job claim")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to enqueue file parse task")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusAccepted, "file uploaded and queued for parsing", gin.H{
+		"job_id": job.ID.String(),
+		"queue":  info.Queue,
+		"status": model.UploadJobProcessing,
+	}, nil)
+}
+
+func isAllowedUploadExtension(ext string) bool {
+	switch ext {
+	case ".csv", ".pdf", ".docx", ".xlsx":
+		return true
+	default:
+		return false
+	}
+}
+
+func truncateRunes(value string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
+
+	runes := []rune(value)
+	if len(runes) <= maxRunes {
+		return value
+	}
+	return string(runes[:maxRunes])
+}
+
+func formatUploadJobError(raw string) (string, string) {
+	if raw == "" {
+		return "", ""
+	}
+
+	if code, message, ok := apperrors.UserFacingStoredGeminiError(raw); ok {
+		return code, message
+	}
+
+	return "", raw
+}
