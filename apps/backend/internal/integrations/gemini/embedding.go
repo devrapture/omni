@@ -160,7 +160,7 @@ func mapGeminiError(err error) error {
 			return fmt.Errorf("%w: %s", apperrors.ErrGeminiQuotaExceeded, apiErr.Message)
 
 		default:
-			return fmt.Errorf("%w: %s", apperrors.ErrGeminiKeyRejected, apiErr.Message)
+			return err
 
 		}
 	}
