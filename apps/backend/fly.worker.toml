@@ -2,7 +2,7 @@
 #
 # See https://fly.io/docs/reference/configuration/ for information
 
-app = "omni-worker"
+app = "omni-rapture-worker"
 primary_region = "cdg"
 
 [build]

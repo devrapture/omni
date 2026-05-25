@@ -2,7 +2,7 @@
 #
 # See https://fly.io/docs/reference/configuration/ for information
 
-app = "omni-api"
+app = "omni-rapture-api"
 primary_region = "cdg"
 
 [build]
