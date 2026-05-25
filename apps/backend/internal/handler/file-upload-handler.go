@@ -12,6 +12,7 @@ import (
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/dto"
+	apperrors "github.com/devrapture/omni/internal/errors"
 	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/service"
@@ -67,6 +68,8 @@ func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
 		return
 	}
 
+	errorCode, errorMessage := formatUploadJobError(job.Error)
+
 	utils.SuccessResponse(c, http.StatusOK, "upload job retrieved", gin.H{
 		"job_id":          job.ID,
 		"status":          job.Status,
@@ -74,7 +77,8 @@ func (h *FileUploadHandler) GetUploadJob(c *gin.Context) {
 		"source_type":     job.SourceType,
 		"content_preview": truncateRunes(job.Content, 100),
 		"content_length":  len([]rune(job.Content)),
-		"error":           job.Error,
+		"error":           errorMessage,
+		"error_code":      errorCode,
 		"created_at":      job.CreatedAt,
 		"updated_at":      job.UpdatedAt,
 		"is_completed":    job.Status == model.UploadJobCompleted,
@@ -230,4 +234,16 @@ func truncateRunes(value string, maxRunes int) string {
 		return value
 	}
 	return string(runes[:maxRunes])
+}
+
+func formatUploadJobError(raw string) (string, string) {
+	if raw == "" {
+		return "", ""
+	}
+
+	if code, message, ok := apperrors.UserFacingStoredGeminiError(raw); ok {
+		return code, message
+	}
+
+	return "", raw
 }

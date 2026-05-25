@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	apperrors "github.com/devrapture/omni/internal/errors"
 	"github.com/devrapture/omni/internal/model"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/service"
@@ -133,7 +134,7 @@ func handleParseFailure(ctx context.Context, r2 *storage.R2Storage, objectKey st
 	maxRetry, hasMaxRetry := asynq.GetMaxRetry(ctx)
 
 	if hasRetryCount && hasMaxRetry && retried >= maxRetry {
-		if updateErr := uploadJobRepo.UpdateJob(ctx, jobID, model.UploadJobFailed, parseErr.Error()); updateErr != nil {
+		if updateErr := uploadJobRepo.UpdateJob(ctx, jobID, model.UploadJobFailed, uploadJobFailureMessage(parseErr)); updateErr != nil {
 			return fmt.Errorf("mark upload job failed: %w", updateErr)
 		}
 
@@ -143,6 +144,13 @@ func handleParseFailure(ctx context.Context, r2 *storage.R2Storage, objectKey st
 	}
 
 	return parseErr
+}
+
+func uploadJobFailureMessage(err error) string {
+	if code, message, ok := apperrors.UserFacingGeminiError(err); ok {
+		return code + ": " + message
+	}
+	return err.Error()
 }
 
 func FileParseOptions() []asynq.Option {

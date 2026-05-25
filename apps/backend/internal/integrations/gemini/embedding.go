@@ -127,8 +127,7 @@ func mapGeminiError(err error) error {
 	}
 
 	var apiErr genai.APIError
-
-	if errors.Is(err, &apiErr) {
+	if errors.As(err, &apiErr) {
 		status := strings.ToUpper(apiErr.Status)
 		msg := strings.ToLower(apiErr.Message)
 
@@ -137,7 +136,8 @@ func mapGeminiError(err error) error {
 			status == "UNAUTHENTICATED",
 			status == "PERMISSION_DENIED",
 			strings.Contains(msg, "api key not valid"),
-			strings.Contains(msg, "invalid api key"):
+			strings.Contains(msg, "invalid api key"),
+			hasGeminiReason(apiErr, "API_KEY_INVALID"):
 			return fmt.Errorf("%w: %s", apperrors.ErrInvalidGeminiKey, apiErr.Message)
 
 		case apiErr.Code == http.StatusTooManyRequests,
@@ -153,4 +153,14 @@ func mapGeminiError(err error) error {
 	}
 
 	return err
+}
+
+func hasGeminiReason(apiErr genai.APIError, reason string) bool {
+	for _, detail := range apiErr.Details {
+		value, ok := detail["reason"].(string)
+		if ok && strings.EqualFold(value, reason) {
+			return true
+		}
+	}
+	return false
 }

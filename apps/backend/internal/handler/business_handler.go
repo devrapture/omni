@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/devrapture/omni/internal/dto"
@@ -112,7 +111,6 @@ func (h *BusinessHandler) AddText(c *gin.Context) {
 
 	_, err = h.service.AddText(c.Request.Context(), businessID, userID.(uuid.UUID), req.Title, req.Content)
 	if err != nil {
-		log.Println("Add text error", err)
 		switch {
 		case errors.Is(err, apperrors.ErrMissingUserGeminiKey):
 			utils.ErrorResponse(c, http.StatusBadRequest, "GEMINI_KEY_MISSING", "Please add your Gemini API key in settings.")
