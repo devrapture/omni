@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/devrapture/omni/internal/dto"
+	apperrors "github.com/devrapture/omni/internal/errors"
 	"github.com/devrapture/omni/internal/service"
 	"github.com/devrapture/omni/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -110,7 +111,18 @@ func (h *BusinessHandler) AddText(c *gin.Context) {
 
 	_, err = h.service.AddText(c.Request.Context(), businessID, userID.(uuid.UUID), req.Title, req.Content)
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to add text")
+		switch {
+		case errors.Is(err, apperrors.ErrMissingUserGeminiKey):
+			utils.ErrorResponse(c, http.StatusBadRequest, "GEMINI_KEY_MISSING", "Please add your Gemini API key in settings.")
+		case errors.Is(err, apperrors.ErrInvalidGeminiKey):
+			utils.ErrorResponse(c, http.StatusBadRequest, "GEMINI_KEY_INVALID", "Your Gemini API key is invalid. Please update it in settings.")
+		case errors.Is(err, apperrors.ErrGeminiQuotaExceeded):
+			utils.ErrorResponse(c, http.StatusPaymentRequired, "GEMINI_KEY_QUOTA_EXCEEDED", "Your Gemini API key has exhausted its quota or rate limit.")
+		case errors.Is(err, apperrors.ErrGeminiKeyRejected):
+			utils.ErrorResponse(c, http.StatusBadGateway, "GEMINI_KEY_ERROR", "Gemini rejected your API key. Please check your key and billing settings.")
+		default:
+			utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "failed to add text")
+		}
 		return
 	}
 

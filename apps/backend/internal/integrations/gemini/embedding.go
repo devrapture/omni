@@ -2,9 +2,13 @@ package gemini
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
+	"net/http"
+	"strings"
 
+	apperrors "github.com/devrapture/omni/internal/errors"
 	"github.com/devrapture/omni/internal/model"
 	"google.golang.org/genai"
 )
@@ -37,6 +41,19 @@ func NewEmbeddingClient(ctx context.Context, apiKey string) (EmbeddingClient, er
 	}, nil
 }
 
+func ValidateAPIKey(ctx context.Context, apiKey string) error {
+	client, err := NewEmbeddingClient(ctx, apiKey)
+	if err != nil {
+		return err
+	}
+
+	if _, err := client.EmbedQuestion(ctx, "validate api key"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Use this when indexing your business content.
 func (c *embeddingClient) EmbedDocument(ctx context.Context, text string) ([]float32, error) {
 	result, err := c.client.Models.EmbedContent(ctx, c.embeddingModel, genai.Text(text), &genai.EmbedContentConfig{
@@ -44,7 +61,7 @@ func (c *embeddingClient) EmbedDocument(ctx context.Context, text string) ([]flo
 		OutputDimensionality: &c.dimension,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to embed content: %w", err)
+		return nil, fmt.Errorf("failed to embed content: %w", mapGeminiError(err))
 	}
 
 	if len(result.Embeddings) == 0 {
@@ -61,9 +78,8 @@ func (c *embeddingClient) EmbedQuestion(ctx context.Context, text string) ([]flo
 		TaskType:             "RETRIEVAL_QUERY",
 		OutputDimensionality: &c.dimension,
 	})
-
 	if err != nil {
-		return nil, fmt.Errorf("failed to embed question: %w", err)
+		return nil, fmt.Errorf("failed to embed question: %w", mapGeminiError(err))
 	}
 
 	if len(result.Embeddings) == 0 {
@@ -86,7 +102,7 @@ func (c *embeddingClient) EmbedBatch(ctx context.Context, texts []string) ([][]f
 		OutputDimensionality: &c.dimension,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to embed batch: %w", err)
+		return nil, fmt.Errorf("failed to embed batch: %w", mapGeminiError(err))
 	}
 
 	if len(result.Embeddings) != len(texts) {
@@ -116,4 +132,48 @@ func normalize(v []float32) []float32 {
 		v[i] /= norm
 	}
 	return v
+}
+
+func mapGeminiError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var apiErr genai.APIError
+	if errors.As(err, &apiErr) {
+		status := strings.ToUpper(apiErr.Status)
+		msg := strings.ToLower(apiErr.Message)
+
+		switch {
+		case apiErr.Code == http.StatusUnauthorized, apiErr.Code == http.StatusForbidden,
+			status == "UNAUTHENTICATED",
+			status == "PERMISSION_DENIED",
+			strings.Contains(msg, "api key not valid"),
+			strings.Contains(msg, "invalid api key"),
+			hasGeminiReason(apiErr, "API_KEY_INVALID"):
+			return fmt.Errorf("%w: %s", apperrors.ErrInvalidGeminiKey, apiErr.Message)
+
+		case apiErr.Code == http.StatusTooManyRequests,
+			status == "RESOURCE_EXHAUSTED",
+			strings.Contains(msg, "quota"),
+			strings.Contains(msg, "rate limit"):
+			return fmt.Errorf("%w: %s", apperrors.ErrGeminiQuotaExceeded, apiErr.Message)
+
+		default:
+			return err
+
+		}
+	}
+
+	return err
+}
+
+func hasGeminiReason(apiErr genai.APIError, reason string) bool {
+	for _, detail := range apiErr.Details {
+		value, ok := detail["reason"].(string)
+		if ok && strings.EqualFold(value, reason) {
+			return true
+		}
+	}
+	return false
 }

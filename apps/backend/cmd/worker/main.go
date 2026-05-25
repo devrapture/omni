@@ -6,7 +6,6 @@ import (
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/database"
-	"github.com/devrapture/omni/internal/integrations/gemini"
 	"github.com/devrapture/omni/internal/queue"
 	"github.com/devrapture/omni/internal/repositories"
 	"github.com/devrapture/omni/internal/service"
@@ -41,12 +40,9 @@ func main() {
 	businessRepo := repositories.NewBusinessRepository(db)
 	knowledgeRepo := repositories.NewKnowledgeRepository(db)
 
-	embeddingSvc, err := gemini.NewEmbeddingClient(context.Background(), cfg.GeminiAPIKey)
-	if err != nil {
-		log.Fatalf("Failed to initialize Gemini embedding client: %v", err)
-	}
-
-	businessSvc := service.NewBusinessService(businessRepo, knowledgeRepo, embeddingSvc, logger)
+	userSettingRepo := repositories.NewUserSettingRepository(db)
+	embeddingProvider := service.NewEmbeddingProvider(userSettingRepo, cfg)
+	businessSvc := service.NewBusinessService(businessRepo, knowledgeRepo, embeddingProvider, logger)
 
 	uploadJobRepo := repositories.NewUploadJobRepository(db)
 	parserSvc := service.NewParserService()

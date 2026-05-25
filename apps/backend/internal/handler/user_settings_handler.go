@@ -52,6 +52,10 @@ func (h *SettingsHandler) UpdateUserSettings(c *gin.Context) {
 			utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "api_key is required when mode is user_key")
 			return
 		}
+		if code, message, ok := apperrors.UserFacingGeminiError(err); ok {
+			utils.ErrorResponse(c, http.StatusBadRequest, code, message)
+			return
+		}
 		utils.ErrorResponse(c, http.StatusInternalServerError, "USER_SETTINGS_UPDATE_FAILED", "failed to update user settings")
 		return
 	}

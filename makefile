@@ -28,7 +28,7 @@ dev-worker: ## Start backend worker
 
 dev-frontend: ## Start frontend
 	@echo "Starting frontend..."
-	cd $(FRONTEND_DIR) && pnpm dev
+	cd $(FRONTEND_DIR) && bun dev
 
 dev: infra-up ## Run backend, worker, and frontend
 	@make -j 3 dev-backend dev-worker dev-frontend
