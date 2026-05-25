@@ -21,4 +21,12 @@ var (
 	ErrFileNameTooLong = errors.New("File name is too long")
 	// ErrNotSupportedPdfFile is returned when a pdf file is not supported
 	ErrNotSupportedPdfFile = errors.New("unsupported pdf file")
+	// ErrInvalidGeminiKey is returned when a gemini api key is invalid
+	ErrInvalidGeminiKey = errors.New("invalid gemini api key")
+	// ErrGeminiQuotaExceeded is returned when a gemini api key quota is exceeded
+	ErrGeminiQuotaExceeded = errors.New("gemini api key quota exceeded")
+	// ErrGeminiKeyRejected is returned when a gemini api key was rejected by the provider
+	ErrGeminiKeyRejected = errors.New("gemini api key was rejected")
+	// ErrMissingUserGeminiKey is returned when a user does not have a gemini api key
+	ErrMissingUserGeminiKey = errors.New("user does not have a gemini api key")
 )

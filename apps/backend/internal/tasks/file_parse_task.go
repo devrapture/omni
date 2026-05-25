@@ -69,7 +69,7 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 			return handleParseFailure(ctx, r2, payload.ObjectKey, err, payload.JobID, uploadJobRepo)
 		}
 
-		chunks, err := businessSvc.IngestText(ctx, payload.BusinessID, payload.Title, content, payload.SourceName, sourceType)
+		chunks, err := businessSvc.IngestText(ctx, payload.BusinessID, payload.UserID, payload.Title, content, payload.SourceName, sourceType)
 
 		if err != nil {
 			return handleParseFailure(ctx, r2, payload.ObjectKey, err, payload.JobID, uploadJobRepo)

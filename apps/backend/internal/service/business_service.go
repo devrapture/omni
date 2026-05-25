@@ -25,7 +25,7 @@ type BusinessService interface {
 	ListSources(ctx context.Context, businessID, userID uuid.UUID, sourceTypeQuery string) ([]KnowledgeSourceSummary, error)
 	AddText(ctx context.Context, businessID, userID uuid.UUID, title, content string) (int, error)
 	DeleteBySource(ctx context.Context, businessID, userID uuid.UUID, sourceName string) error
-	IngestText(ctx context.Context, businessID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error)
+	IngestText(ctx context.Context, businessID, userID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error)
 }
 
 type KnowledgeSourceSummary struct {
@@ -38,15 +38,15 @@ type KnowledgeSourceSummary struct {
 type businessService struct {
 	businessRepository  repositories.BusinessRepository
 	knowledgeRepository repositories.KnowledgeRepository
-	embeddingService    EmbeddingService
+	embeddingProvider   EmbeddingProvider
 	logger              *zap.Logger
 }
 
-func NewBusinessService(br repositories.BusinessRepository, kr repositories.KnowledgeRepository, es EmbeddingService, logger *zap.Logger) BusinessService {
+func NewBusinessService(br repositories.BusinessRepository, kr repositories.KnowledgeRepository, ep EmbeddingProvider, logger *zap.Logger) BusinessService {
 	return &businessService{
 		businessRepository:  br,
 		knowledgeRepository: kr,
-		embeddingService:    es,
+		embeddingProvider:   ep,
 		logger:              logger,
 	}
 }
@@ -139,10 +139,11 @@ func (s *businessService) AddText(ctx context.Context, businessID, userID uuid.U
 	}
 
 	s.logger.Info("Text chunked", zap.Int("num_chunks", len(chunks)))
-	embeddings, err := s.batchEmbed(ctx, chunks)
+	embeddings, err := s.batchEmbed(ctx, chunks, userID)
 
 	if err != nil {
-		return 0, fmt.Errorf("embedding failed: %w", err)
+		s.logger.Error("embedding failed", zap.Error(err))
+		return 0, err
 	}
 
 	if len(embeddings) != len(chunks) {
@@ -174,7 +175,7 @@ func (s *businessService) AddText(ctx context.Context, businessID, userID uuid.U
 	return len(records), nil
 }
 
-func (s *businessService) IngestText(ctx context.Context, businessID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error) {
+func (s *businessService) IngestText(ctx context.Context, businessID, userID uuid.UUID, title, content, sourceName string, sourceType model.SourceType) (int, error) {
 	s.logger.Info("Starting text ingestion", zap.String("businessID", businessID.String()), zap.String("sourceName", sourceName), zap.String("sourceType", string(sourceType)))
 	cfg := DefaultChunkConfig()
 	chunks := ChunkText(content, cfg)
@@ -184,7 +185,7 @@ func (s *businessService) IngestText(ctx context.Context, businessID uuid.UUID, 
 	}
 
 	s.logger.Info("Text chunked", zap.Int("num_chunks", len(chunks)))
-	embeddings, err := s.batchEmbed(ctx, chunks)
+	embeddings, err := s.batchEmbed(ctx, chunks, userID)
 	if err != nil {
 		return 0, fmt.Errorf("embedding failed: %w", err)
 	}
@@ -213,7 +214,11 @@ func (s *businessService) IngestText(ctx context.Context, businessID uuid.UUID, 
 	return len(records), nil
 }
 
-func (s *businessService) batchEmbed(ctx context.Context, texts []string) ([][]float32, error) {
+func (s *businessService) batchEmbed(ctx context.Context, texts []string, userID uuid.UUID) ([][]float32, error) {
+	embeddingService, err := s.embeddingProvider.ForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	const batchSize = 50
 	var allEmbeddings [][]float32
 	for i := 0; i < len(texts); i += batchSize {
@@ -223,7 +228,7 @@ func (s *businessService) batchEmbed(ctx context.Context, texts []string) ([][]f
 		}
 
 		batch := texts[i:end]
-		embeddings, err := s.embeddingService.EmbedBatch(ctx, batch)
+		embeddings, err := embeddingService.EmbedBatch(ctx, batch)
 		if err != nil {
 			return nil, fmt.Errorf("batch %d-%d embeddings failed: %w", i, end, err)
 		}
