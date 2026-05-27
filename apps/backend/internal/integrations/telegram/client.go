@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/devrapture/omni/internal/config"
+	apperrors "github.com/devrapture/omni/internal/errors"
 )
 
 type TelegramClient struct {
@@ -63,4 +64,38 @@ func (t *TelegramClient) SendMessage(ctx context.Context, chatID, text string) e
 	}
 
 	return nil
+}
+
+func (t *TelegramClient) ValidateBotToken(ctx context.Context, token string) (username string, err error) {
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/getMe", token)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create telegram request: %w", err)
+	}
+
+	res, err := t.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send message: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("telegram api returned status code %d", res.StatusCode)
+	}
+
+	var body struct {
+		Ok     bool `json:"ok"`
+		Result struct {
+			Username string `json:"username"`
+		} `json:"result"`
+	}
+
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+		return "", err
+	}
+
+	if !body.Ok {
+		return "", apperrors.ErrInvalidTelegramBotToken
+	}
+	return body.Result.Username, nil
 }

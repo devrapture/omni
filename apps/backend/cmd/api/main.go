@@ -50,11 +50,13 @@ func main() {
 	uploadJobRepo := repositories.NewUploadJobRepository(db)
 	businessRepo := repositories.NewBusinessRepository(db)
 	knowledgeRepo := repositories.NewKnowledgeRepository(db)
+	businessChannelSettingsRepo := repositories.NewBusinessChannelSettingsRepository(db)
 
 	// Services
 	userSvc := service.NewUserService(cfg, userRepo)
 	userSettingsSvc := service.NewUserSettingService(userSettingRepo, cfg)
 	parserSvc := service.NewParserService()
+	businessChannelSettingService := service.NewBusinessChannelSettings(businessRepo, businessChannelSettingsRepo)
 
 	embeddingProvider := service.NewEmbeddingProvider(userSettingRepo, cfg)
 	businessSvc := service.NewBusinessService(businessRepo, knowledgeRepo, embeddingProvider, logger)
@@ -67,12 +69,14 @@ func main() {
 	userSettingHandler := handlers.NewUserSettingsHandler(userSettingsSvc)
 	fileUploadHandler := handlers.NewFileUploadHandler(cfg, parserSvc, asynqClient, uploadJobRepo, businessRepo, r2Storage, logger)
 	businessHandler := handlers.NewBusinessHandler(businessSvc)
+	BusinessChannelSettingHandler := handlers.NewBusinessChannelSettingHandler(businessChannelSettingService)
 
 	deps := routes.HandlerDependencies{
-		AuthHandler:         authHandler,
-		UserSettingsHandler: userSettingHandler,
-		FileUploadHandler:   fileUploadHandler,
-		BusinessHandler:     businessHandler,
+		AuthHandler:                   authHandler,
+		UserSettingsHandler:           userSettingHandler,
+		FileUploadHandler:             fileUploadHandler,
+		BusinessHandler:               businessHandler,
+		BusinessChannelSettingHandler: BusinessChannelSettingHandler,
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

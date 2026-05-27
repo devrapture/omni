@@ -11,10 +11,11 @@ import (
 )
 
 type HandlerDependencies struct {
-	AuthHandler         *handlers.AuthHandler
-	UserSettingsHandler *handlers.SettingsHandler
-	FileUploadHandler   *handlers.FileUploadHandler
-	BusinessHandler     *handlers.BusinessHandler
+	AuthHandler                   *handlers.AuthHandler
+	UserSettingsHandler           *handlers.SettingsHandler
+	FileUploadHandler             *handlers.FileUploadHandler
+	BusinessHandler               *handlers.BusinessHandler
+	BusinessChannelSettingHandler *handlers.BusinessChannelSettingHandler
 }
 
 func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config, logger *zap.Logger) *gin.Engine {
@@ -61,7 +62,8 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config, logger *za
 			POST("", deps.BusinessHandler.CreateBusiness).
 			GET("/knowledge/:businessID", deps.BusinessHandler.ListSources).
 			DELETE("/knowledge/:businessID", deps.BusinessHandler.DeleteSource).
-			POST("/knowledge/:businessID", deps.BusinessHandler.AddText)
+			POST("/knowledge/:businessID", deps.BusinessHandler.AddText).
+			GET("/:businessID/channels", deps.BusinessChannelSettingHandler.Get)
 
 	}
 

@@ -19,12 +19,12 @@ func main() {
 		&model.BusinessKnowledge{},
 		&model.UserSetting{},
 		&model.UploadJob{},
+		&model.BusinessChannelSetting{},
 	// add all model...
 	)
 	if err != nil {
 		io.WriteString(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-	io.WriteString(os.Stdout, "CREATE EXTENSION IF NOT EXISTS vector;\n")
 	io.WriteString(os.Stdout, stmts)
 }

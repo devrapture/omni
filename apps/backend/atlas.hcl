@@ -9,18 +9,9 @@ data "external_schema" "go" {
   ]
 }
 
-data "composite_schema" "app" {
-  schema "public" {
-    url = "file://internal/migrations/extensions.hcl"
-    schema = schema.public
-  }
-  schema "public" {
-    url = data.external_schema.go.url
-  }
-}
 
 env "local" {
-  src = data.composite_schema.app.url
+  src = data.external_schema.go.url
   url = getenv("DATABASE_URL")
   dev = getenv("ATLAS_DEV_URL")
 

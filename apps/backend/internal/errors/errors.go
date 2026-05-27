@@ -29,4 +29,6 @@ var (
 	ErrGeminiKeyRejected = errors.New("gemini api key was rejected")
 	// ErrMissingUserGeminiKey is returned when a user does not have a gemini api key
 	ErrMissingUserGeminiKey = errors.New("user does not have a gemini api key")
+	// ErrInvalidTelegramBotToken is returned when a telegram bot token is invalid
+	ErrInvalidTelegramBotToken = errors.New("invalid telegram bot token")
 )
