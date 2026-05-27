@@ -27,7 +27,7 @@ func NewBusinessChannelSettingsRepository(DB *gorm.DB) BusinessChannelSettingsRe
 
 func (r *businessChannelSettingsRepository) FindByBusinessID(ctx context.Context, businessID uuid.UUID) (*model.BusinessChannelSetting, error) {
 	var setting model.BusinessChannelSetting
-	err := r.db.WithContext(ctx).Where("business_id = ?", businessID).Find(&setting).Error
+	err := r.db.WithContext(ctx).Where("business_id = ?", businessID).First(&setting).Error
 	if err != nil {
 		return nil, err
 	}
@@ -41,6 +41,7 @@ func (r *businessChannelSettingsRepository) Upsert(ctx context.Context, setting 
 		DoUpdates: clause.AssignmentColumns([]string{
 			"telegram_bot_token_encrypted",
 			"telegram_bot_username",
+			"telegram_active",
 		}),
 	}).Create(setting).Error
 }

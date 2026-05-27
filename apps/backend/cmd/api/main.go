@@ -56,7 +56,7 @@ func main() {
 	userSvc := service.NewUserService(cfg, userRepo)
 	userSettingsSvc := service.NewUserSettingService(userSettingRepo, cfg)
 	parserSvc := service.NewParserService()
-	businessChannelSettingService := service.NewBusinessChannelSettings(businessRepo, businessChannelSettingsRepo)
+	businessChannelSettingService := service.NewBusinessChannelSettings(businessRepo, businessChannelSettingsRepo, logger, cfg)
 
 	embeddingProvider := service.NewEmbeddingProvider(userSettingRepo, cfg)
 	businessSvc := service.NewBusinessService(businessRepo, knowledgeRepo, embeddingProvider, logger)

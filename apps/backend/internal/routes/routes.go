@@ -63,7 +63,8 @@ func Setup(db *gorm.DB, deps HandlerDependencies, cfg *config.Config, logger *za
 			GET("/knowledge/:businessID", deps.BusinessHandler.ListSources).
 			DELETE("/knowledge/:businessID", deps.BusinessHandler.DeleteSource).
 			POST("/knowledge/:businessID", deps.BusinessHandler.AddText).
-			GET("/:businessID/channels", deps.BusinessChannelSettingHandler.Get)
+			GET("/:businessID/channels", deps.BusinessChannelSettingHandler.Get).
+			PUT("/:businessID/channels", deps.BusinessChannelSettingHandler.Update)
 
 	}
 
