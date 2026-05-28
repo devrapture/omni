@@ -92,7 +92,7 @@ func (s *businessChannelSetting) Update(ctx context.Context, businessID, userID 
 		BusinessID:                businessID,
 		TelegramBotUsername:       &username,
 		TelegramBotTokenEncrypted: &encryptedToken,
-		TelegramActive:            true,
+		TelegramActive:            req.TelegramActive,
 	}
 	if err := s.businessChannelSettingRepository.Upsert(ctx, setting); err != nil {
 		return nil, err

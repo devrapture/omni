@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/devrapture/omni/internal/dto"
@@ -48,7 +47,6 @@ func (h *BusinessChannelSettingHandler) Get(c *gin.Context) {
 func (h *BusinessChannelSettingHandler) Update(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	businessID, err := uuid.Parse(c.Param("businessID"))
-	log.Println("uuid.Parse(c.Param(businessID))", err)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "BAD_REQUEST", "invalid business_id")
 		return

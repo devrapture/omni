@@ -4,6 +4,7 @@ import "github.com/google/uuid"
 
 type UpdateBusinessChannelSettingDTO struct {
 	TelegramBotToken string `json:"telegram_bot_token" binding:"omitempty"`
+	TelegramActive   bool   `json:"telegram_active" binding:"omitempty"`
 }
 
 type UpdateBusinessChannelResponse struct {
