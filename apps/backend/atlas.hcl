@@ -25,3 +25,12 @@ env "local" {
     }
   }
 }
+
+env "prod" {
+  url = getenv("DATABASE_URL")
+
+  migration {
+    dir = "file://internal/migrations"
+    revisions_schema = "public"
+  }
+}

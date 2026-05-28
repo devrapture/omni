@@ -1,0 +1,13 @@
+.git
+.air.toml
+.env
+.env.example
+tmp
+bin
+backend
+*.log
+Dockerfile
+fly.api.toml
+fly.worker.toml
+node_modules
+dist

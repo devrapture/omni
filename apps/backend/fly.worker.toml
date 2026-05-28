@@ -1,0 +1,19 @@
+# fly.worker.toml app configuration file
+#
+# See https://fly.io/docs/reference/configuration/ for information
+
+app = "omni-rapture-worker"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  app = "/app/worker"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory_mb = 512
+
+[env]
+  APP_ENV = "production"

@@ -23,3 +23,9 @@ migrate-status:
 
 migrate-hash:
 	@$(ATLAS) migrate hash --dir file://internal/migrations
+
+deploy-api: ## Deploy API to Fly.io
+	fly deploy -c fly.api.toml
+
+deploy-worker: ## Deploy worker to Fly.io
+	fly deploy -c fly.worker.toml
