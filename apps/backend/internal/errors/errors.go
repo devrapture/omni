@@ -31,4 +31,6 @@ var (
 	ErrMissingUserGeminiKey = errors.New("user does not have a gemini api key")
 	// ErrInvalidTelegramBotToken is returned when a telegram bot token is invalid
 	ErrInvalidTelegramBotToken = errors.New("invalid telegram bot token")
+	// ErrTelegramBotTokenNotProvided is returned when a telegram bot token is not provided
+	ErrTelegramBotTokenNotProvided = errors.New("telegram bot token is not provided")
 )

@@ -69,6 +69,12 @@ func (h *BusinessChannelSettingHandler) Update(c *gin.Context) {
 			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_TELEGRAM_BOT_TOKEN", "invalid telegram bot token")
 			return
 		}
+		if errors.Is(err, apperrors.ErrTelegramBotTokenNotProvided) {
+			utils.ErrorResponse(c, http.StatusBadRequest, "TELEGRAM_BOT_TOKEN_REQUIRED", "telegram bot token is not provided")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "BUSINESS_CHANNEL_SETTING_UPDATE_FAILED", "failed to update business channel setting")
+		return
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Successful updated business channel setting", channelSettings, nil)

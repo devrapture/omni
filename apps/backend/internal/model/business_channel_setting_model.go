@@ -15,7 +15,7 @@ type BusinessChannelSetting struct {
 
 	TelegramBotTokenEncrypted *string `json:"-" gorm:"type:text"`
 	TelegramBotUsername       *string `json:"telegram_bot_username,omitempty" gorm:"type:text"`
-	TelegramActive            bool    `json:"telegram_active" gorm:"type:bool;default:true"`
+	TelegramActive            bool    `json:"telegram_active" gorm:"type:bool"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`

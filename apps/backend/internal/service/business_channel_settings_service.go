@@ -73,31 +73,78 @@ func (s *businessChannelSetting) Update(ctx context.Context, businessID, userID 
 		return nil, err
 	}
 
-	telegramBotToken := strings.TrimSpace(req.TelegramBotToken)
-	if telegramBotToken == "" {
-		return nil, apperrors.ErrInvalidTelegramBotToken
-	}
-
-	validationCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	username, err := s.telegramClient.ValidateBotToken(validationCtx, telegramBotToken)
-	if err != nil {
-		return nil, apperrors.ErrInvalidTelegramBotToken
-	}
-	encryptedToken, err := utils.EncryptText(telegramBotToken, s.cfg.EncryptionKey)
-	if err != nil {
+	existingSetting, err := s.businessChannelSettingRepository.FindByBusinessID(ctx, businessID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
+
+	hasNewToken := req.TelegramBotToken != nil
+	hasActive := req.TelegramActive != nil
+
+	var telegramActive bool
+	var username string
+	var encryptedToken string
+
+	if hasNewToken {
+		telegramBotToken := strings.TrimSpace(*req.TelegramBotToken)
+		if telegramBotToken == "" {
+			return nil, apperrors.ErrInvalidTelegramBotToken
+		}
+
+		validationCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		username, err = s.telegramClient.ValidateBotToken(validationCtx, telegramBotToken)
+		if err != nil {
+			return nil, apperrors.ErrInvalidTelegramBotToken
+		}
+		encryptedToken, err = utils.EncryptText(telegramBotToken, s.cfg.EncryptionKey)
+		if err != nil {
+			return nil, err
+		}
+
+		if hasActive {
+			telegramActive = *req.TelegramActive
+		} else {
+			telegramActive = true
+		}
+	} else {
+		hasExistingToken := existingSetting != nil && existingSetting.TelegramBotTokenEncrypted != nil && *existingSetting.TelegramBotTokenEncrypted != ""
+
+		if hasActive {
+			if !hasExistingToken {
+				return nil, apperrors.ErrTelegramBotTokenNotProvided
+			}
+			telegramActive = *req.TelegramActive
+			username = *existingSetting.TelegramBotUsername
+			encryptedToken = *existingSetting.TelegramBotTokenEncrypted
+		} else {
+			if !hasExistingToken {
+				return nil, apperrors.ErrTelegramBotTokenNotProvided
+			}
+			telegramActive = existingSetting.TelegramActive
+			username = *existingSetting.TelegramBotUsername
+			encryptedToken = *existingSetting.TelegramBotTokenEncrypted
+		}
+	}
+
+	var id uuid.UUID
+	if existingSetting != nil {
+		id = existingSetting.ID
+	}
+
 	setting := &model.BusinessChannelSetting{
+		ID:                        id,
 		BusinessID:                businessID,
 		TelegramBotUsername:       &username,
 		TelegramBotTokenEncrypted: &encryptedToken,
-		TelegramActive:            req.TelegramActive,
+		TelegramActive:            telegramActive,
 	}
+
 	if err := s.businessChannelSettingRepository.Upsert(ctx, setting); err != nil {
 		return nil, err
 	}
-	s.logger.Info("telegram bot token updated", zap.String("user_id", userID.String()), zap.String("business_id", businessID.String()), zap.String("telegram_bot_token", encryptedToken))
+
+	s.logger.Info("telegram bot token updated/toggled", zap.String("user_id", userID.String()), zap.String("business_id", businessID.String()), zap.String("telegram_bot_token", encryptedToken))
 	return setting, nil
 }
 
