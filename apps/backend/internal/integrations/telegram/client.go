@@ -75,13 +75,9 @@ func (t *TelegramClient) ValidateBotToken(ctx context.Context, token string) (us
 
 	res, err := t.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to send message: %w", err)
+		return "", fmt.Errorf("failed to validate token: %w", err)
 	}
 	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("telegram api returned status code %d", res.StatusCode)
-	}
 
 	var body struct {
 		Ok     bool `json:"ok"`
@@ -90,8 +86,16 @@ func (t *TelegramClient) ValidateBotToken(ctx context.Context, token string) (us
 		} `json:"result"`
 	}
 
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusNotFound {
+		return "", apperrors.ErrInvalidTelegramBotToken
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("telegram api returned status code %d", res.StatusCode)
+	}
+
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	if !body.Ok {

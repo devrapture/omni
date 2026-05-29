@@ -144,7 +144,7 @@ func (s *businessChannelSetting) Update(ctx context.Context, businessID, userID 
 		return nil, err
 	}
 
-	s.logger.Info("telegram bot token updated/toggled", zap.String("user_id", userID.String()), zap.String("business_id", businessID.String()), zap.String("telegram_bot_token", encryptedToken))
+	s.logger.Info("telegram bot token updated/toggled", zap.String("user_id", userID.String()), zap.String("business_id", businessID.String()))
 	return setting, nil
 }
 
