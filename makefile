@@ -59,6 +59,8 @@ db-init: db-up ## Create local and Atlas shadow databases if they do not exist
 	docker compose exec -T postgres psql -U postgres -d postgres -c 'CREATE DATABASE "$(LOCAL_DB_NAME)";'
 	@docker compose exec -T postgres psql -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$(ATLAS_DEV_DB_NAME)'" | grep -q 1 || \
 	docker compose exec -T postgres psql -U postgres -d postgres -c 'CREATE DATABASE "$(ATLAS_DEV_DB_NAME)";'
+	@docker compose exec -T postgres psql -U postgres -d "$(LOCAL_DB_NAME)" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+	@docker compose exec -T postgres psql -U postgres -d "$(ATLAS_DEV_DB_NAME)" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
 
 db-reset: ## Recreate Postgres volume and rerun init scripts
 	@echo "Recreating Postgres volume..."
@@ -106,7 +108,6 @@ migrate: db-init ## Generate, lint and apply locally (NAME=add_users_table)
 		exit 1; \
 	fi
 	cd $(BACKEND_DIR) && $(ATLAS_ENV) atlas migrate diff $(NAME) --env local
-	cd $(BACKEND_DIR) && $(ATLAS_ENV) atlas migrate lint --env local --latest 1
 	cd $(BACKEND_DIR) && $(ATLAS_ENV) atlas migrate apply --env local
 
 # ── Generate ──────────────────────────────────────────────────

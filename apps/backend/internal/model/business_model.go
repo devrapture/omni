@@ -8,13 +8,15 @@ import (
 )
 
 type Business struct {
-	ID        uuid.UUID           `json:"id" gorm:"type:uuid;primaryKey"`
-	Name      string              `json:"name" gorm:"type:text;not null"`
+	ID   uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
+	Name string    `json:"name" gorm:"type:text;not null"`
 
-	UserID    uuid.UUID           `json:"user_id" gorm:"type:uuid;not null"`
-	User      User                `json:"-" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
-	
+	UserID uuid.UUID `json:"user_id" gorm:"type:uuid;not null"`
+	User   User      `json:"-" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
+
 	Knowledge []BusinessKnowledge `json:"knowledge,omitempty" gorm:"foreignKey:BusinessID"`
+
+	ChannelSetting *BusinessChannelSetting `json:"channel_setting,omitempty" gorm:"foreignKey:BusinessID"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
