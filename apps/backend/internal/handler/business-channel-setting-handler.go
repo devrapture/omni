@@ -65,6 +65,10 @@ func (h *BusinessChannelSettingHandler) Update(c *gin.Context) {
 			utils.ErrorResponse(c, http.StatusNotFound, "BUSINESS_NOT_FOUND", "business not found")
 			return
 		}
+		if errors.Is(err, apperrors.ErrInvalidTelegramBotFormat) {
+			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_TELEGRAM_BOT_TOKEN", apperrors.ErrInvalidTelegramBotFormat.Error())
+			return
+		}
 		if errors.Is(err, apperrors.ErrInvalidTelegramBotToken) {
 			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_TELEGRAM_BOT_TOKEN", "invalid telegram bot token")
 			return

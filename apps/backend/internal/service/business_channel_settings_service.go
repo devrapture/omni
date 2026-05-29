@@ -91,6 +91,11 @@ func (s *businessChannelSetting) Update(ctx context.Context, businessID, userID 
 			return nil, apperrors.ErrInvalidTelegramBotToken
 		}
 
+		// Basic format validation for Telegram tokens: digits:alphanumeric
+		if !s.isValidTelegramToken(telegramBotToken) {
+			return nil, apperrors.ErrInvalidTelegramBotFormat
+		}
+
 		validationCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		username, err = s.telegramClient.ValidateBotToken(validationCtx, telegramBotToken)
@@ -115,15 +120,19 @@ func (s *businessChannelSetting) Update(ctx context.Context, businessID, userID 
 				return nil, apperrors.ErrTelegramBotTokenNotProvided
 			}
 			telegramActive = *req.TelegramActive
-			username = *existingSetting.TelegramBotUsername
 			encryptedToken = *existingSetting.TelegramBotTokenEncrypted
+			if existingSetting.TelegramBotUsername != nil {
+				username = *existingSetting.TelegramBotUsername
+			}
 		} else {
 			if !hasExistingToken {
 				return nil, apperrors.ErrTelegramBotTokenNotProvided
 			}
 			telegramActive = existingSetting.TelegramActive
-			username = *existingSetting.TelegramBotUsername
 			encryptedToken = *existingSetting.TelegramBotTokenEncrypted
+			if existingSetting.TelegramBotUsername != nil {
+				username = *existingSetting.TelegramBotUsername
+			}
 		}
 	}
 
@@ -154,4 +163,21 @@ func (s *businessChannelSetting) Delete(ctx context.Context, businessID, userID 
 	}
 
 	return s.businessChannelSettingRepository.DeleteByBusinessID(ctx, businessID)
+}
+
+func (s *businessChannelSetting) isValidTelegramToken(token string) bool {
+	parts := strings.SplitN(token, ":", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	if len(parts[0]) < 5 || len(parts[1]) < 20 {
+		return false
+	}
+	// First part should be all digits
+	for _, r := range parts[0] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
