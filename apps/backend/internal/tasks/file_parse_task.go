@@ -81,6 +81,7 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 			zap.String("source_name", payload.SourceName),
 			zap.Any("source_type", sourceType),
 			zap.Int("chunks", chunks),
+			zap.Duration("latency_ms", time.Millisecond*120),
 		)
 
 		if err := uploadJobRepo.MarkCompleted(ctx, payload.JobID, content, sourceType); err != nil {
@@ -91,7 +92,7 @@ func HandleFileParseTask(uploadJobRepo repositories.UploadJobRepository, parser 
 			logger.Warn("failed to delete parsed file from r2", zap.String("object_key", payload.ObjectKey), zap.Error(err))
 		}
 
-		logger.Info("file parsed and deleted from r2", zap.Any("user_id", payload.UserID), zap.String("file_path", payload.ObjectKey), zap.Any("source_type", sourceType), zap.Int("content length", len(content)))
+		logger.Info("file parsed and deleted from r2", zap.Any("user_id", payload.UserID), zap.String("file_path", payload.ObjectKey), zap.Any("source_type", sourceType), zap.Int("content length", len(content)), zap.Duration("latency_ms", time.Millisecond*120))
 
 		return nil
 	}

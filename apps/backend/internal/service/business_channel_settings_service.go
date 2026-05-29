@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 type BusinessChannelSetting interface {
 	Get(ctx context.Context, businessID, userID uuid.UUID) (*dto.UpdateBusinessChannelResponse, error)
 	Update(ctx context.Context, businessID, userID uuid.UUID, req dto.UpdateBusinessChannelSettingDTO) (*model.BusinessChannelSetting, error)
+	RegisterTelegramWebhook(ctx context.Context, encryptedToken string, businessID uuid.UUID) error
 }
 
 type businessChannelSetting struct {
@@ -180,4 +182,41 @@ func (s *businessChannelSetting) isValidTelegramToken(token string) bool {
 		}
 	}
 	return true
+}
+
+func (s *businessChannelSetting) RegisterTelegramWebhook(ctx context.Context, encryptedToken string, businessID uuid.UUID) error {
+	webhookURL := fmt.Sprintf("%s/api/v1/webhooks/telegram/%s", s.cfg.AppBaseUrl, businessID)
+	decryptedTelegramBotToken, err := utils.DecryptText(encryptedToken, s.cfg.EncryptionKey)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Info("Registering telegram webhook", zap.String("business_id", businessID.String()), zap.String("webhook_url", webhookURL))
+	err = s.telegramClient.SetWebHook(ctx, decryptedTelegramBotToken, webhookURL)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Info("Telegram webhook registered successfully",
+		zap.String("business_id", businessID.String()),
+		zap.String("webhook_url", webhookURL),
+	)
+	return nil
+}
+
+func (s *businessChannelSetting) DeleteTelegramWebhook(ctx context.Context, encryptedToken string, businessID uuid.UUID) error {
+	webhookURL := fmt.Sprintf("%s/api/v1/webhooks/telegram/%s", s.cfg.AppBaseUrl, businessID)
+	decryptedTelegramBotToken, err := utils.DecryptText(encryptedToken, s.cfg.EncryptionKey)
+	if err != nil {
+		return err
+	}
+	err = s.telegramClient.DeleteWebHook(ctx, decryptedTelegramBotToken, webhookURL)
+	if err != nil {
+		return err
+	}
+	s.logger.Info("Deleting Telegram webhook successful",
+		zap.String("business_id", businessID.String()),
+		zap.String("webhook_url", webhookURL),
+	)
+	return nil
 }

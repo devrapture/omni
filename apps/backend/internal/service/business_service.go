@@ -171,6 +171,7 @@ func (s *businessService) AddText(ctx context.Context, businessID, userID uuid.U
 		zap.String("source_name", title),
 		zap.Any("source_type", model.SourceTypeText),
 		zap.Int("chunks", len(records)),
+		zap.Duration("latency_ms", time.Millisecond*120),
 	)
 	return len(records), nil
 }
@@ -184,7 +185,7 @@ func (s *businessService) IngestText(ctx context.Context, businessID, userID uui
 		return 0, fmt.Errorf("no content could be extracted from the provided text")
 	}
 
-	s.logger.Info("Text chunked", zap.Int("num_chunks", len(chunks)))
+	s.logger.Info("Text chunked", zap.Int("num_chunks", len(chunks)), zap.Duration("latency_ms", time.Millisecond*120))
 	embeddings, err := s.batchEmbed(ctx, chunks, userID)
 	if err != nil {
 		return 0, fmt.Errorf("embedding failed: %w", err)

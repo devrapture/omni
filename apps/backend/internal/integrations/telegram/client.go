@@ -94,10 +94,10 @@ func (t *TelegramClient) ValidateBotToken(ctx context.Context, token string) (us
 	return body.Result.Username, nil
 }
 
-func (t *TelegramClient) SetWebHook(ctx context.Context, telegramBotToken string) error {
+func (t *TelegramClient) SetWebHook(ctx context.Context, telegramBotToken, webhookURL string) error {
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/setWebhook", telegramBotToken)
 	payload := map[string]string{
-		"url":          t.appBaseURL,
+		"url":          webhookURL,
 		"secret_token": t.cfg.TelegramWebhookSecret,
 	}
 	var result SetWebhookResponse
@@ -112,11 +112,10 @@ func (t *TelegramClient) SetWebHook(ctx context.Context, telegramBotToken string
 	return nil
 }
 
-func (t *TelegramClient) DeleteWebHook(ctx context.Context, telegramBotToken string) error {
+func (t *TelegramClient) DeleteWebHook(ctx context.Context, telegramBotToken, webhookURL string) error {
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/deleteWebhook", telegramBotToken)
 	payload := map[string]string{
-		"url":          t.appBaseURL,
-		"secret_token": t.cfg.TelegramWebhookSecret,
+		"url": webhookURL,
 	}
 	var result SetWebhookResponse
 	if err := t.post(ctx, url, payload, &result); err != nil {
