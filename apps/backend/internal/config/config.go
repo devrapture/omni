@@ -15,6 +15,7 @@ type Config struct {
 	AppEnv      string
 	Port        string
 	DatabaseURL string
+	AppBaseUrl  string
 
 	// Telegram
 	TelegramBotToken      string
@@ -101,6 +102,7 @@ func Load() (*Config, error) {
 		AppEnv:                 appEnv,
 		Port:                   getEnv("PORT", "8080"),
 		DatabaseURL:            dbURL,
+		AppBaseUrl:             mustEnv("APP_BASE_URL"),
 		TelegramBotToken:       mustEnv("TELEGRAM_BOT_TOKEN"),
 		TelegramWebhookSecret:  mustEnv("TELEGRAM_WEBHOOK_SECRET"),
 		GeminiAPIKey:           mustEnv("GEMINI_API_KEY"),

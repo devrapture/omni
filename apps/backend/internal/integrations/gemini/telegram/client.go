@@ -15,6 +15,8 @@ type TelegramClient struct {
 	botToken   string
 	baseURL    string
 	httpClient *http.Client
+	cfg *config.Config
+	appBaseURL string
 }
 
 type SendMessageRequest struct {
@@ -29,6 +31,8 @@ func NewTelegramClient(cfg *config.Config) *TelegramClient {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		cfg: cfg,
+		appBaseURL: cfg.AppBaseUrl,
 	}
 }
 
@@ -64,3 +68,7 @@ func (t *TelegramClient) SendMessage(ctx context.Context, chatID, text string) e
 
 	return nil
 }
+
+func (t *TelegramClient) SetWebhook(ctx context.Context){
+	url := fmt.Sprintf("", a ...any)
+} 
