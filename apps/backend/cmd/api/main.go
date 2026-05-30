@@ -58,6 +58,25 @@ func main() {
 	parserSvc := service.NewParserService()
 	businessChannelSettingService := service.NewBusinessChannelSettings(businessRepo, businessChannelSettingsRepo, logger, cfg)
 
+	// ── Register Telegram webhooks for all active bots ─────────────────────
+	// This runs synchronously before the HTTP server starts.
+	// Why synchronous? We want to be sure all bots are registered before we
+	// start accepting messages. If we did this async, there's a window where
+	// a message could arrive before registration completes.
+	//
+	// GetWebhookInfo is called per-bot to skip already-registered webhooks,
+	// so this is fast even with many businesses.
+	logger.Info("Registering Telegram webhooks for all active bots...")
+
+	backgroundCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := businessChannelSettingService.RegisterAllTelegramWebhooks(backgroundCtx, cfg.AppBaseUrl); err != nil {
+		// Non-fatal: log the error but start the server anyway.
+		// Individual bot failures are logged inside RegisterAllTelegramWebhooks.
+		logger.Warn("Some Telegram webhook registrations failed", zap.Error(err))
+	}
+
 	embeddingProvider := service.NewEmbeddingProvider(userSettingRepo, cfg)
 	businessSvc := service.NewBusinessService(businessRepo, knowledgeRepo, embeddingProvider, logger)
 
