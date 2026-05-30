@@ -12,3 +12,18 @@ type UpdateBusinessChannelResponse struct {
 	TelegramActive   bool      `json:"telegram_active"`
 	TelegramUserName string    `json:"telegram_user_name,omitempty"`
 }
+
+type TelegramWebhookOutcome string
+
+const (
+	TelegramWebhookOutcomeNone               TelegramWebhookOutcome = ""
+	TelegramWebhookOutcomeRegistered         TelegramWebhookOutcome = "registered"
+	TelegramWebhookOutcomeRegistrationFailed TelegramWebhookOutcome = "registration_failed"
+	TelegramWebhookOutcomeDeleted            TelegramWebhookOutcome = "deleted"
+	TelegramWebhookOutcomeDeletionFailed     TelegramWebhookOutcome = "deletion_failed"
+)
+
+type BusinessChannelSettingUpdateResult struct {
+	Setting        UpdateBusinessChannelResponse `json:"-"`
+	WebhookOutcome TelegramWebhookOutcome        `json:"-"`
+}
