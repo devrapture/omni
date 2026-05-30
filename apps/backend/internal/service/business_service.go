@@ -184,7 +184,7 @@ func (s *businessService) IngestText(ctx context.Context, businessID, userID uui
 		return 0, fmt.Errorf("no content could be extracted from the provided text")
 	}
 
-	s.logger.Info("Text chunked", zap.Int("num_chunks", len(chunks)), zap.Duration("latency_ms", time.Millisecond*120))
+	s.logger.Info("Text chunked", zap.Int("num_chunks", len(chunks)))
 	embeddings, err := s.batchEmbed(ctx, chunks, userID)
 	if err != nil {
 		return 0, fmt.Errorf("embedding failed: %w", err)

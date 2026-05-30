@@ -71,7 +71,6 @@ func (s *businessChannelSetting) Get(ctx context.Context, businessID, userID uui
 	return response, nil
 }
 
-
 func (s *businessChannelSetting) Update(ctx context.Context, businessID, userID uuid.UUID, req dto.UpdateBusinessChannelSettingDTO) (*dto.BusinessChannelSettingUpdateResult, error) {
 	if _, err := s.businessRepository.FindByIDAndUserID(ctx, businessID, userID); err != nil {
 		return nil, err
@@ -238,7 +237,7 @@ func (s *businessChannelSetting) Delete(ctx context.Context, businessID, userID 
 		return err
 	}
 
-	if existingSetting != nil && existingSetting.TelegramActive && existingSetting.TelegramBotTokenEncrypted != nil && *existingSetting.TelegramBotTokenEncrypted != "" {
+	if existingSetting != nil && existingSetting.TelegramBotTokenEncrypted != nil && *existingSetting.TelegramBotTokenEncrypted != "" {
 		webhookURL := fmt.Sprintf("%s/api/v1/webhooks/telegram/%s", s.cfg.AppBaseUrl, businessID)
 		if err := s.deleteTelegramWebhook(ctx, businessID, userID, webhookURL); err != nil {
 			s.logger.Warn("Failed to delete telegram webhook during settings deletion", zap.Error(err))
@@ -306,11 +305,14 @@ func (s *businessChannelSetting) GetDecryptedTelegramBotToken(ctx context.Contex
 	}
 
 	existingSetting, err := s.businessChannelSettingRepository.FindByBusinessID(ctx, businessID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", apperrors.ErrTelegramBotTokenNotProvided
+		}
 		return "", err
 	}
 
-	if existingSetting.TelegramBotTokenEncrypted == nil {
+	if existingSetting == nil || existingSetting.TelegramBotTokenEncrypted == nil || *existingSetting.TelegramBotTokenEncrypted == "" {
 		return "", apperrors.ErrTelegramBotTokenNotProvided
 	}
 	return utils.DecryptText(*existingSetting.TelegramBotTokenEncrypted, s.cfg.EncryptionKey)

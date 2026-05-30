@@ -142,16 +142,19 @@ func (t *TelegramClient) GetWebhookInfo(ctx context.Context, telegramBotToken st
 	defer res.Body.Close()
 
 	var result struct {
-		Ok     bool        `json:"ok"`
-		Result WebhookInfo `json:"result"`
+		Ok          bool        `json:"ok"`
+		Result      WebhookInfo `json:"result"`
+		Description string      `json:"description"`
 	}
-	if res.StatusCode == http.StatusUnauthorized {
+	if res.StatusCode != http.StatusOK {
 		return nil, apperrors.ErrInvalidTelegramBotToken
 	}
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode webhook info response:%w", err)
 	}
-
+	if !result.Ok {
+		return nil, fmt.Errorf("telegram rejected getWebhookInfo: %s", result.Description)
+	}
 	return &result.Result, nil
 }
 
@@ -180,12 +183,12 @@ func (t *TelegramClient) post(ctx context.Context, url string, payload, result i
 		return fmt.Errorf("failed to read telegram response body: %w", err)
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("telegram api returned status code %d", res.StatusCode)
-	}
-
 	if res.StatusCode == http.StatusUnauthorized {
 		return apperrors.ErrInvalidTelegramBotToken
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("telegram api returned status code %d", res.StatusCode)
 	}
 
 	if result != nil {
