@@ -171,7 +171,6 @@ func (s *businessService) AddText(ctx context.Context, businessID, userID uuid.U
 		zap.String("source_name", title),
 		zap.Any("source_type", model.SourceTypeText),
 		zap.Int("chunks", len(records)),
-		zap.Duration("latency_ms", time.Millisecond*120),
 	)
 	return len(records), nil
 }
