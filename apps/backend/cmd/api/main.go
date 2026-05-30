@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/database"
@@ -68,10 +69,10 @@ func main() {
 	// so this is fast even with many businesses.
 	logger.Info("Registering Telegram webhooks for all active bots...")
 
-	backgroundCtx, cancel := context.WithCancel(context.Background())
+	webhookCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := businessChannelSettingService.RegisterAllTelegramWebhooks(backgroundCtx, cfg.AppBaseUrl); err != nil {
+	if err := businessChannelSettingService.RegisterAllTelegramWebhooks(webhookCtx, cfg.AppBaseUrl); err != nil {
 		// Non-fatal: log the error but start the server anyway.
 		// Individual bot failures are logged inside RegisterAllTelegramWebhooks.
 		logger.Warn("Some Telegram webhook registrations failed", zap.Error(err))

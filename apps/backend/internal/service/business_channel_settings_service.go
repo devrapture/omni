@@ -313,7 +313,15 @@ func (s *businessChannelSetting) RegisterAllTelegramWebhooks(ctx context.Context
 
 	successCount := 0
 	failCount := 0
+	baseURL = strings.TrimRight(baseURL, "/")
 	for _, setting := range allActiveSettings {
+		if setting.TelegramBotTokenEncrypted == nil || *setting.TelegramBotTokenEncrypted == "" {
+			s.logger.Warn("Missing Telegram token",
+				zap.String("business_id", setting.BusinessID.String()),
+			)
+			failCount++
+			continue
+		}
 		business, err := s.businessRepository.FindByID(ctx, setting.BusinessID)
 		if err != nil {
 			s.logger.Warn("Could  not find business for setting", zap.String("business_id", setting.BusinessID.String()), zap.Error(err))
@@ -332,7 +340,7 @@ func (s *businessChannelSetting) RegisterAllTelegramWebhooks(ctx context.Context
 		}
 
 		webhookInfo, err := s.telegramClient.GetWebhookInfo(ctx, decryptedTelegramBotToken)
-		if err == nil && webhookInfo.URL == baseURL {
+		if err == nil && webhookInfo.URL == webhookURL {
 			s.logger.Info("Webhook already registered — skipping",
 				zap.String("business_id", business.ID.String()),
 				zap.String("url", webhookURL),
