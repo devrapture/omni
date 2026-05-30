@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ type Config struct {
 	AppEnv      string
 	Port        string
 	DatabaseURL string
+	AppBaseUrl  string
 
 	// Telegram
 	TelegramBotToken      string
@@ -97,10 +99,16 @@ func Load() (*Config, error) {
 		r2PresignTTLSeconds = 900
 	}
 
+	appBaseURL, err := url.Parse(strings.TrimRight(mustEnv("APP_BASE_URL"), "/"))
+	if err != nil {
+		return nil, fmt.Errorf("APP_BASE_URL must be a valid absolute https URL")
+	}
+
 	config := &Config{
 		AppEnv:                 appEnv,
 		Port:                   getEnv("PORT", "8080"),
 		DatabaseURL:            dbURL,
+		AppBaseUrl:             appBaseURL.String(),
 		TelegramBotToken:       mustEnv("TELEGRAM_BOT_TOKEN"),
 		TelegramWebhookSecret:  mustEnv("TELEGRAM_WEBHOOK_SECRET"),
 		GeminiAPIKey:           mustEnv("GEMINI_API_KEY"),

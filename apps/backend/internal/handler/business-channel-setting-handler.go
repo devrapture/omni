@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/devrapture/omni/internal/dto"
@@ -59,7 +60,7 @@ func (h *BusinessChannelSettingHandler) Update(c *gin.Context) {
 		return
 	}
 
-	channelSettings, err := h.service.Update(c.Request.Context(), businessID, userID.(uuid.UUID), req)
+	result, err := h.service.Update(c.Request.Context(), businessID, userID.(uuid.UUID), req)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			utils.ErrorResponse(c, http.StatusNotFound, "BUSINESS_NOT_FOUND", "business not found")
@@ -81,5 +82,26 @@ func (h *BusinessChannelSettingHandler) Update(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, "Successful updated business channel setting", channelSettings, nil)
+	utils.SuccessResponse(c, http.StatusOK, updateSuccessMessage(result), result.Setting, nil)
+}
+
+func updateSuccessMessage(result *dto.BusinessChannelSettingUpdateResult) string {
+	switch result.WebhookOutcome {
+	case dto.TelegramWebhookOutcomeRegistered:
+		if result.Setting.TelegramUserName != "" {
+			return fmt.Sprintf(
+				"Your Telegram bot @%s is connected. Customers can message your bot and receive AI-powered replies.",
+				result.Setting.TelegramUserName,
+			)
+		}
+		return "Your Telegram bot is connected. Customers can message your bot and receive AI-powered replies."
+	case dto.TelegramWebhookOutcomeRegistrationFailed:
+		return "Your bot token was saved, but we couldn't register the webhook to receive messages. Please try again."
+	case dto.TelegramWebhookOutcomeDeleted:
+		return "Telegram channel has been deactivated."
+	case dto.TelegramWebhookOutcomeDeletionFailed:
+		return "Settings saved, but we couldn't remove the Telegram webhook. Your bot may still receive messages until this is resolved."
+	default:
+		return "Business channel settings updated successfully."
+	}
 }
