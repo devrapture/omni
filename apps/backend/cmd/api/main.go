@@ -87,10 +87,10 @@ func main() {
 
 	go func() {
 		// ── Register Telegram webhooks for all active bots ─────────────────────
-		// This runs synchronously before the HTTP server starts.
-		// Why synchronous? We want to be sure all bots are registered before we
-		// start accepting messages. If we did this async, there's a window where
-		// a message could arrive before registration completes.
+		// This runs asynchronously to avoid blocking server startup.
+		// There's a brief window where messages could arrive before registration
+		// completes, but this is acceptable since unregistered webhooks won't
+		// receive Telegram messages anyway.
 		//
 		// GetWebhookInfo is called per-bot to skip already-registered webhooks,
 		// so this is fast even with many businesses.
