@@ -13,6 +13,7 @@ type BusinessChannelSettingsRepository interface {
 	FindByBusinessID(ctx context.Context, businessID uuid.UUID) (*model.BusinessChannelSetting, error)
 	Upsert(ctx context.Context, setting *model.BusinessChannelSetting) error
 	DeleteByBusinessID(ctx context.Context, businessID uuid.UUID) error
+	FindAllActiveTelegramBot(ctx context.Context) ([]model.BusinessChannelSetting, error)
 }
 
 type businessChannelSettingsRepository struct {
@@ -48,4 +49,10 @@ func (r *businessChannelSettingsRepository) Upsert(ctx context.Context, setting 
 
 func (r *businessChannelSettingsRepository) DeleteByBusinessID(ctx context.Context, businessID uuid.UUID) error {
 	return r.db.WithContext(ctx).Where("business_id = ?", businessID).Delete(&model.BusinessChannelSetting{}).Error
+}
+
+func (r *businessChannelSettingsRepository) FindAllActiveTelegramBot(ctx context.Context) ([]model.BusinessChannelSetting, error) {
+	var setting []model.BusinessChannelSetting
+	err := r.db.WithContext(ctx).Where("telegram_active = true").Find(&setting).Error
+	return setting, err
 }

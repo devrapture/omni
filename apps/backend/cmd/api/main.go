@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/devrapture/omni/internal/config"
 	"github.com/devrapture/omni/internal/database"
@@ -83,6 +84,29 @@ func main() {
 
 	r := routes.Setup(db, deps, cfg, logger)
 	logger.Info("Server starting", zap.String("addr", addr))
+
+	go func() {
+		// ── Register Telegram webhooks for all active bots ─────────────────────
+		// This runs asynchronously to avoid blocking server startup.
+		// There's a brief window where messages could arrive before registration
+		// completes, but this is acceptable since unregistered webhooks won't
+		// receive Telegram messages anyway.
+		//
+		// GetWebhookInfo is called per-bot to skip already-registered webhooks,
+		// so this is fast even with many businesses.
+		logger.Info("Registering Telegram webhooks for all active bots...")
+
+		webhookCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := businessChannelSettingService.RegisterAllTelegramWebhooks(webhookCtx, cfg.AppBaseUrl); err != nil {
+			// Non-fatal: log the error but start the server anyway.
+			// Individual bot failures are logged inside RegisterAllTelegramWebhooks.
+			logger.Warn("Some Telegram webhook registrations failed", zap.Error(err))
+		}
+
+		logger.Info("Telegram webhook registration finished")
+	}()
 
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("Failed to start server %v", err)
